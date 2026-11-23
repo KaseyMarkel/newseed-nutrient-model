@@ -176,13 +176,17 @@ export const DEFAULT_FACTORS = Object.freeze({ fe: 1.19, zn: 1.38, prot: 1.94, e
 //      intake and inadequacy KPIs; it does not enter either stunting pathway.
 // ---------------------------------------------------------------------------
 export const VA_DEFAULTS = Object.freeze({
-  target_ug_g: 15,          // HarvestPlus provitamin A maize target, ug beta-carotene eq. per g grain
-  retention: 0.55,          // kept after storage + nixtamalization + tortilla making
-  bioconversion: 6.5,       // ug beta-carotene per ug retinol, biofortified maize
-  ear: [210, 275],          // ug RAE/day: ages < 48 mo (1-3 y), >= 48 mo (4-8 y)
-  density_per_1000kcal: 230,// usual non-maize vitamin A, ug RAE per 1000 non-maize kcal
-  sd_log: 0.75,             // between-child spread of usual non-maize intake (log scale)
-  conv_ug_g: 0,             // provitamin A of conventional (white) maize, ug beta-carotene eq./g
+  // Sources: site/js/evidence.js and README "Vitamin A". Calibrated 2026-11-23.
+  target_ug_g: 15,           // HarvestPlus provitamin A maize target, ug beta-carotene eq./g (released hybrids 7.5-10.3)
+  retention: 0.475,          // storage 0.5 (Mugode 2014) x nixtamalization/tortilla 0.95 (Ortiz 2016)
+  bioconversion: 10,         // ug beta-carotene per ug retinol; Gannon 2014 Zambian children 10.4 (range 3.2-12)
+  ear: [210, 275],           // ug RAE/day: < 48 mo (IOM 1-3 y), >= 48 mo (IOM 4-8 y)
+  median_ug: 850,            // non-maize vitamin A (mostly fortified sugar) at ref_kcal, ug RAE/d:
+                             //   median of Mayan children 2-5 y, 816-905 (BMC Public Health 2025)
+  ref_kcal: 418,             // weighted median non-maize kcal/d, children 24-59 mo (this bundle)
+  kcal_elasticity: 0.25,     // calibrated: baseline inadequacy 2.1% (<36 mo), 2.6% (36-59 mo) vs 1.1%/3.0% observed; non-maize vitamin A ~ (non-maize kcal / ref_kcal)^elasticity
+  sd_log: 0.555,             // CV 0.6 of usual intake around the child's expected value
+  conv_ug_g: 0,              // white maize: carotenoids not detected
 });
 
 // standard normal CDF (Abramowitz-Stegun 7.1.26 via erf), |error| < 1.5e-7
@@ -197,7 +201,7 @@ function vaChild(age, ekm, ekt, gramsPerKcal, frac, V) {
   const maize_g = ekm * gramsPerKcal;
   const ug_bc = maize_g * (V.conv_ug_g + frac * (V.target_ug_g - V.conv_ug_g)) * V.retention;
   const fromMaize = ug_bc / V.bioconversion;
-  const median = Math.max(1e-6, V.density_per_1000kcal * Math.max(0, ekt - ekm) / 1000);
+  const median = Math.max(1e-6, V.median_ug * Math.pow(Math.max(0, ekt - ekm) / V.ref_kcal, V.kcal_elasticity));
   const ear = age < 48 ? V.ear[0] : V.ear[1];
   const mean = median * Math.exp(V.sd_log * V.sd_log / 2) + fromMaize;
   const gap = ear - fromMaize;

@@ -111,7 +111,7 @@ export async function renderNutrients(sk, opts) {
     regions: res.departments.map(d => d.region), legend: 'Inadequacy (%)',
     z: res.departments.map(d => d.va_inad_pct),
     text: res.departments.map(d => `<b>${d.region}</b><br>Vitamin A inadequacy: ${fmtNum(d.va_inad_pct_baseline, 1)}% → ${fmtNum(d.va_inad_pct, 1)}%<br>Mean intake: ${fmtNum(d.mean_va_baseline, 0)} → ${fmtNum(d.mean_va, 0)} µg RAE/d`)
-  }, { scale: 'ochre', zmin: 0, zmax: 100 });
+  }, { scale: 'ochre', zmin: 0 });
   if (stale()) return;
 
   // dose-response sweeps (44 runs, cached; drawn with a progress line)

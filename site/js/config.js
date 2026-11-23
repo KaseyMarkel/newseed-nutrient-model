@@ -79,7 +79,7 @@ export async function loadEngine() {
     if (bundle) {
       stage('Starting the model…');
       try {
-        const mod = await import('../../engine/engine.js');
+        const mod = await import('../engine/engine.js');
         if (typeof mod.createEngine !== 'function') throw new Error('engine.js has no createEngine export');
         engine = mod.createEngine(bundle);
         if (typeof engine.run !== 'function' || typeof engine.defaults !== 'function') throw new Error('engine lacks run()/defaults()');
