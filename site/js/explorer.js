@@ -11,20 +11,22 @@ import { mapSpec, auxSpec, inadequacyByAge, boxRows, tableCell } from './display
 import { engineNotes } from './notes.js';
 import { allSeeds, allSubsidies } from './scenarios.js';
 import { Runner, PEN_STEPS, yieldToUI } from './runner.js';
+import { boostsOf, boostParams, boostCaption, isDefaultBoost } from './boosts.js';
+import { buildNutrientsSkeleton, renderNutrients } from './nutrients_page.js';
 
-const PAGE_TITLES = { overview: 'Department Table', trends: 'KPI Trends', methodology: 'Methodology' };
-const EXTRA_PAGES = ['overview', 'trends', 'methodology'];
+const PAGE_TITLES = { nutrients: 'Nutrient Boosts', overview: 'Department Table', trends: 'KPI Trends', methodology: 'Methodology' };
+const EXTRA_PAGES = ['nutrients', 'overview', 'trends', 'methodology'];
 
 let info, defaults, runner;
 let page = pageFromHash();
 let sidebarEl, contentEl, headerEl, layoutEl;
 let skeleton = null; // DOM refs for the current page
-let openAcc = new Set(['Adoption scenario', 'Visualizations', 'Column groups', 'KPI selection']);
+let openAcc = new Set(['Adoption scenario', 'Nutrient content boost', 'Visualizations', 'Column groups', 'KPI selection']);
 
 function pageFromHash() {
-  const id = (location.hash || '#stunting').slice(1);
+  const id = (location.hash || '#nutrients').slice(1);
   // own keys only: '#constructor' or '#toString' must not resolve to Object.prototype members
-  return Object.prototype.hasOwnProperty.call(PAGES, id) || EXTRA_PAGES.includes(id) ? id : 'stunting';
+  return Object.prototype.hasOwnProperty.call(PAGES, id) || EXTRA_PAGES.includes(id) ? id : 'nutrients';
 }
 
 function seeds() { return allSeeds(defaults); }
@@ -34,7 +36,7 @@ function altPathway(id) { const ps = defaults.pathways; const i = ps.findIndex(p
 
 function currentSpec(overrides = {}) {
   const st = getState();
-  return { seedId: st.seed, subsidyId: st.subsidy, pathway: st.pathway, penetration: st.penetration, ...overrides };
+  return { seedId: st.seed, subsidyId: st.subsidy, pathway: st.pathway, penetration: st.penetration, params: boostParams(boostsOf(st)), ...overrides };
 }
 function selectedDepartments(res) {
   const st = getState();
@@ -45,7 +47,8 @@ function selectedDepartments(res) {
 function caption() {
   const st = getState();
   const seed = seeds().find(s => s.id === st.seed);
-  return `${st.penetration}% of maize land biofortified, ${seed ? seedShort(seed) : st.seed}`;
+  const b = boostsOf(st);
+  return `${st.penetration}% of maize land biofortified, ${seed ? seedShort(seed) : st.seed}` + (isDefaultBoost(b) ? '' : ` (${boostCaption(b)})`);
 }
 // A seed or subsidy chosen earlier may have been deleted (custom) or be unknown on this
 // port; never fall back silently to another seed while the caption names the old one.
@@ -99,7 +102,7 @@ function rebuildSidebar() {
     vizOptions: def ? def.viz : null,
     note: def ? def.note : null,
     seeds: seeds(), subsidies: subsidies(), pathways: defaults.pathways,
-    showDepartments: page !== 'trends',
+    showDepartments: page !== 'trends' && page !== 'nutrients',
     showPenetration: page !== 'trends',
     showSeed: page !== 'trends',
     showSubsidy: true,
@@ -142,6 +145,8 @@ function buildSkeleton() {
       contentEl.append(h('div', { class: 'two-col' }, c1, c2));
       skeleton.box = [p1, p2]; skeleton.boxTitles = [c1.querySelector('.ttl'), c2.querySelector('.ttl')]; skeleton.boxFoots = [f1, f2];
     }
+  } else if (page === 'nutrients') {
+    Object.assign(skeleton, buildNutrientsSkeleton(contentEl));
   } else if (page === 'overview') {
     const search = h('input', { type: 'text', placeholder: 'Search department', 'aria-label': 'Search department' });
     const dl = h('button', { class: 'btn small' }, icon('download'), 'Download CSV');
@@ -208,6 +213,19 @@ async function updateContentInner() {
   if (def) await updateExplorerPage(def);
   else if (page === 'overview') renderTable();
   else if (page === 'trends') await renderTrends();
+  else if (page === 'nutrients') await renderNutrientsPage();
+}
+
+let nutToken = 0;
+async function renderNutrientsPage() {
+  const token = ++nutToken;
+  const st = getState();
+  const spec = { seedId: st.seed, subsidyId: st.subsidy, pathway: st.pathway, penetration: st.penetration };
+  const ok = runOrFail(() => runner.run({ ...spec, params: boostParams(boostsOf(st)) }));
+  if (!ok) return;
+  showNotes(ok);
+  await renderNutrients(skeleton, { runner, spec, boosts: boostsOf(st), pathwayLabel: pathwayObj(st.pathway).label,
+    stale: () => token !== nutToken || page !== 'nutrients' });
 }
 
 // Engine errors ("Invalid scenario: ...") and warnings (meta.warnings) are shown above the page;
@@ -372,8 +390,9 @@ async function renderTrends() {
   const altWord = pathwayObj(alt).label.split(' ')[0];
   const lines = [];
   seedList.forEach(s => {
-    lines.push({ seed: s, spec: { seedId: s.id, subsidyId: st.subsidy, pathway: st.pathway }, label: seedShort(s) });
-    if (st.compare) lines.push({ seed: s, spec: { seedId: s.id, subsidyId: st.subsidy, pathway: alt }, label: `${seedShort(s)} (${altWord})`, dash: true });
+    const params = boostParams(boostsOf(st));
+    lines.push({ seed: s, spec: { seedId: s.id, subsidyId: st.subsidy, pathway: st.pathway, params }, label: seedShort(s) });
+    if (st.compare) lines.push({ seed: s, spec: { seedId: s.id, subsidyId: st.subsidy, pathway: alt, params }, label: `${seedShort(s)} (${altWord})`, dash: true });
   });
   const missing = lines.filter(l => PEN_STEPS.some(p => !runner.cache.has(runner.keyOf(runner.scenarioFor({ ...l.spec, penetration: p })))));
   // a line the model refuses (e.g. a custom seed edited by hand) is left out with a note; the others still draw
@@ -431,7 +450,7 @@ async function main() {
   // custom seeds and regimes saved or deleted in another tab: refresh the pickers and the page
   window.addEventListener('storage', e => { if (e.key === 'azr.custom.v1' || e.key === null) { rebuildSidebar(); updateContent(); } });
   subscribe((st, patch) => {
-    if ('compare' in patch || 'subsidy' in patch) rebuildSidebar();
+    if ('compare' in patch || 'subsidy' in patch || 'boosts' in patch) rebuildSidebar();
     updateContent();
   });
   setPage(page);

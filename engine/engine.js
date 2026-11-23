@@ -68,7 +68,7 @@ function boundaryDecisions(bundle, scenario, econDefaults) {
   const params = scenario.params || {};
   if (params.coverage_override) return null;
   for (const [key, v] of Object.entries(params)) { // any economics change makes it a new scenario
-    if (key in econDefaults && key !== 'travel_matrix' && v !== null && v !== undefined && v !== econDefaults[key]) return null;
+    if (key in econDefaults && key !== 'travel_matrix' && key !== 'factor_fe' && key !== 'factor_zn' && v !== null && v !== undefined && v !== econDefaults[key]) return null;
   }
   // the official variant with the same numbers, whatever the scenario calls it
   const seed = (B.variants.seeds || []).find((s) => sameNums(scenario.seed.yield_change, s.yield_change));
@@ -130,7 +130,7 @@ export function createEngine(bundle, opts = {}) {
     const decisions = override ? null : boundaryDecisions(bundle, scenario, econDefaults);
     if (decisions && Array.isArray(handoff.departments)) handoff = applyBoundary(handoff, decisions);
     const factors = { fe: params.factor_fe, zn: params.factor_zn, prot: params.factor_prot,
-      effect: params.gunaratna_effect_size };
+      effect: params.gunaratna_effect_size, lt: params.lystrp_scale, va: params.va_fraction };
     const n = nut.run(pathway, handoff, { includeQuantiles: params.include_quantiles !== false, factors });
     const econByRegion = new Map((e.departments || []).map((r) => [r.region ?? r.departamento, r]));
     const departments = n.departments.map((r) => mergeRow(econByRegion.get(r.region), r, !!override));

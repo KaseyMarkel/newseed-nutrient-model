@@ -111,7 +111,19 @@ export const KPIS = {
   n_protein_inad_scenario: { label: 'Protein inadequate', unit: 'count', group: 'protein', good: 'down' },
   n_protein_inad_averted: { label: 'Protein inadequacy averted', unit: 'count', group: 'protein', good: 'up' },
   protein_inad_under36_pct: { label: 'Protein inadequacy 6-35 mo', unit: 'pct', group: 'protein', good: 'down' },
-  protein_inad_36to59_pct: { label: 'Protein inadequacy 36-59 mo', unit: 'pct', group: 'protein', good: 'down' }
+  protein_inad_36to59_pct: { label: 'Protein inadequacy 36-59 mo', unit: 'pct', group: 'protein', good: 'down' },
+  // Vitamin A (extension: provitamin A maize; see Nutrient Boosts)
+  mean_va_baseline: { label: 'Vitamin A intake, baseline (µg RAE/d)', unit: 'number', group: 'vitamin_a' },
+  mean_va: { label: 'Mean vitamin A intake (µg RAE/d)', unit: 'number', group: 'vitamin_a', good: 'up' },
+  va_change_pct: { label: 'Vitamin A intake change', unit: 'pct', group: 'vitamin_a', good: 'up', signed: true },
+  va_inad_pct_baseline: { label: 'Vitamin A inadequacy, baseline', unit: 'pct', group: 'vitamin_a' },
+  va_inad_pct: { label: 'Vitamin A inadequacy', unit: 'pct', group: 'vitamin_a', good: 'down' },
+  va_inad_change_pp: { label: 'Vitamin A inadequacy reduction', unit: 'pp', group: 'vitamin_a', good: 'up' },
+  n_va_inad_baseline: { label: 'Vitamin A inadequate, baseline', unit: 'count', group: 'vitamin_a' },
+  n_va_inad_scenario: { label: 'Vitamin A inadequate', unit: 'count', group: 'vitamin_a', good: 'down' },
+  n_va_inad_averted: { label: 'Vitamin A inadequacy averted', unit: 'count', group: 'vitamin_a', good: 'up' },
+  va_inad_under36_pct: { label: 'Vitamin A inadequacy 6-35 mo', unit: 'pct', group: 'vitamin_a', good: 'down' },
+  va_inad_36to59_pct: { label: 'Vitamin A inadequacy 36-59 mo', unit: 'pct', group: 'vitamin_a', good: 'down' }
 };
 
 export function kpiLabel(key) {
@@ -129,6 +141,7 @@ export const TREND_KPIS = [
   'mean_iron_total', 'iron_inad_pct', 'iron_inad_change_pp', 'n_iron_inad_averted',
   'mean_zinc', 'zinc_inad_pct', 'zinc_inad_change_pp', 'n_zinc_inad_averted',
   'mean_protein', 'protein_inad_pct', 'protein_inad_change_pp', 'n_protein_inad_averted',
+  'mean_va', 'va_inad_pct', 'va_inad_change_pp', 'n_va_inad_averted',
   'n_farmers_bio', 'land_bio_ha', 'production_biofortified_mt', 'coverage_pct',
   'income_increment_total', 'income_per_farmer_adopter', 'newseed_subsidy_total'
 ];
@@ -191,6 +204,13 @@ export const TABLE_GROUPS = [
     { key: 'n_protein_inad_baseline', label: 'Protein inad. before n (%)', pctKey: 'protein_inad_pct_baseline' },
     { key: 'n_protein_inad_scenario', label: 'Protein inad. after n (%)', pctKey: 'protein_inad_pct' },
     { key: 'n_protein_inad_averted', label: 'Protein inad. averted n (pp)', pctKey: 'protein_inad_change_pp', pctUnit: 'pp' }
+  ] },
+  { id: 'vitamin_a', label: 'Vitamin A (new)', cols: [
+    { key: 'mean_va_baseline', label: 'Vitamin A before (µg RAE/d)' },
+    { key: 'mean_va', label: 'Vitamin A after (µg RAE/d)' },
+    { key: 'n_va_inad_baseline', label: 'Vit. A inad. before n (%)', pctKey: 'va_inad_pct_baseline' },
+    { key: 'n_va_inad_scenario', label: 'Vit. A inad. after n (%)', pctKey: 'va_inad_pct' },
+    { key: 'n_va_inad_averted', label: 'Vit. A inad. averted n (pp)', pctKey: 'va_inad_change_pp', pctUnit: 'pp' }
   ] }
 ];
 

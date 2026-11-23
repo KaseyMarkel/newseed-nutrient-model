@@ -2,6 +2,8 @@
 import { getState, setState } from './state.js';
 import { tileTexts, econTexts } from './display.js';
 import { DEPARTMENTS } from './mock_reference.js';
+import { BOOSTS, PRESETS, boostsOf, cleanBoosts, isDefaultBoost } from './boosts.js';
+const setBoosts = b => setState({ boosts: cleanBoosts(b) });
 
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -48,6 +50,7 @@ export function icon(name, cls = 'ic') {
 
 // Azahar's dashboard structure (the main navigation) and the extra tools (one small menu).
 export const DASH_NAV = [
+  { group: 'Nutrient Boosts', page: 'nutrients' },
   { group: 'Nutrition', items: [['stunting', 'Stunting'], ['iron', 'Iron'], ['zinc', 'Zinc'], ['protein', 'Protein'], ['energy', 'Energy'], ['consumption', 'Consumption']] },
   { group: 'Economics', items: [['production', 'Production']] },
   { group: 'Overview', items: [['overview', 'Department Table'], ['trends', 'KPI Trends']] },
@@ -90,7 +93,7 @@ export function renderHeader(activeId) {
     h('div', { class: 'bar' },
       h('a', { class: 'brand', href: 'index.html' },
         h('span', { class: 'logo', html: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 21c-5 0-8-3-8-8 5 0 8 3 8 8zM12 21c5 0 8-3 8-8-5 0-8 3-8 8zM12 21V9M9 6a3 3 0 016 0c0 2-3 3-3 3s-3-1-3-3z"/></svg>New Seed' }),
-        h('span', { class: 'title' }, 'Guatemala model replica')),
+        h('span', { class: 'title' }, 'Guatemala model · nutrient boosts')),
       nav, tools));
   return header;
 }
@@ -176,6 +179,9 @@ export function buildSidebar(opts) {
     ]));
   }
 
+  // Nutrient boosts (extension)
+  if (opts.showBoosts !== false) wrap.append(boostAccordion(opts.openBoosts !== false));
+
   // Stunting methodology
   if (opts.showPathway !== false) {
     const sel = h('select', { 'aria-label': 'Stunting methodology' }, opts.pathways.map(p => h('option', { value: p.id, selected: p.id === st.pathway ? true : null }, p.label)));
@@ -258,6 +264,30 @@ export function buildSidebar(opts) {
   }
 
   return wrap;
+}
+
+// Four 0-100% sliders; the engine runs when a slider is released.
+export function boostAccordion(open = true) {
+  const b = boostsOf(getState());
+  const rows = BOOSTS.map(x => {
+    const chip = h('span', { class: 'boost-val' }, (x.id === 'va' ? '' : '+') + b[x.id] + '%');
+    const range = h('input', { type: 'range', class: 'boost', min: 0, max: 100, step: 1, value: b[x.id], 'aria-label': `${x.label}: ${x.unit}`, style: { '--c': x.color } });
+    range.addEventListener('input', () => { chip.textContent = (x.id === 'va' ? '' : '+') + range.value + '%'; });
+    range.addEventListener('change', () => setBoosts({ ...boostsOf(getState()), [x.id]: +range.value }));
+    const mark = h('span', { class: 'boost-def', title: `Replica value: ${x.def}%`, style: { left: `calc(${x.def}% + ${(8 - x.def * 0.16).toFixed(2)}px)` } });
+    return h('div', { class: 'boost-row' + (x.extra ? ' extra' : '') },
+      h('div', { class: 'boost-head' }, h('span', { class: 'boost-name' }, h('i', { style: { background: x.color } }), x.label, x.extra ? h('em', {}, 'new') : null), chip),
+      h('div', { class: 'boost-track' }, range, x.def ? mark : null),
+      h('div', { class: 'boost-hint' }, x.unit + ' · ' + x.hint));
+  });
+  const presets = h('div', { class: 'boost-presets' }, PRESETS.map(p => {
+    const on = BOOSTS.every(x => p.b[x.id] === b[x.id]);
+    return h('button', { class: 'btn small' + (on ? ' on' : ''), onClick: () => setBoosts(p.b) }, p.label);
+  }));
+  const note = h('div', { class: 'note info' }, isDefaultBoost(b)
+    ? 'At the replica values every number equals the replica’s. Tick marks show those values.'
+    : 'Boosts differ from the replica. Iron, zinc and protein change the existing KPIs; provitamin A has its own KPIs on the Nutrient Boosts page.');
+  return accordion('Nutrient content boost', 'slider', [...rows, presets, note], open);
 }
 
 // Drawer behaviour for phones

@@ -1,8 +1,9 @@
 // Shared sidebar state, persisted in localStorage (wrapped in try/catch) so the
 // Explorer, Compare and Lab pages agree on penetration, seed, subsidy, pathway and units.
 import { DEFAULT_UNITS } from './units.js';
+import { BOOST_DEFAULTS, cleanBoosts } from './boosts.js';
 
-const KEY = 'azr.state.v1';
+const KEY = 'nsb.state.v1'; // own key: the boost site never shares state with the replica
 
 const DEFAULTS = {
   penetration: 50,
@@ -19,6 +20,7 @@ const DEFAULTS = {
   compareBaseline: { seed: 's28', subsidy: 'sub00' },
   compareScenario: null, // id of a saved scenario, or null
   comparePenetration: 50,
+  boosts: { ...BOOST_DEFAULTS },
   v: 2
 };
 
@@ -38,6 +40,7 @@ function load() {
       // guard against hand-edited or corrupt values
       const pen = v => Number.isFinite(+v) ? Math.min(100, Math.max(0, Math.round(+v / 10) * 10)) : 50;
       out.penetration = pen(out.penetration); out.comparePenetration = pen(out.comparePenetration);
+      out.boosts = cleanBoosts(out.boosts);
       if (!['USD', 'GTQ'].includes(out.units.currency)) out.units.currency = 'USD';
       if (!['ha', 'mz'].includes(out.units.area)) out.units.area = 'ha';
       if (!['mt', 'qq'].includes(out.units.weight)) out.units.weight = 'mt';

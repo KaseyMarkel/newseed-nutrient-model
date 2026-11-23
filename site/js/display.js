@@ -222,7 +222,8 @@ const TREND_FMT = {
   mean_iron_total: [3, ' mg/day'], mean_zinc: [3, ' mg/day'], mean_protein: [2, ' g/day'],
   iron_inad_pct: [1, ' %'], zinc_inad_pct: [1, ' %'], protein_inad_pct: [1, ' %'], coverage_pct: [1, ' %'],
   iron_inad_change_pp: [2, ' pp'], zinc_inad_change_pp: [2, ' pp'], protein_inad_change_pp: [2, ' pp'],
-  n_farmers_bio: [0, ' Farmers (n)']
+  n_farmers_bio: [0, ' Farmers (n)'],
+  mean_va: [0, ' µg RAE/day'], va_inad_pct: [1, ' %'], va_inad_change_pp: [2, ' pp'], n_va_inad_averted: [0, ' Children (n)']
 };
 export function trendValueText(key, raw, units) {
   const f = TREND_FMT[key];

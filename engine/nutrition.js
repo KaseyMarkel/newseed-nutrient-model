@@ -61,6 +61,9 @@ export const NUTRITION_KEYS = [
   'protein_inad_pct_baseline', 'protein_inad_pct', 'protein_inad_change_pp',
   'n_protein_inad_baseline', 'n_protein_inad_scenario', 'n_protein_inad_averted',
   'protein_inad_under36_pct', 'protein_inad_36to59_pct',
+  // extension: provitamin A
+  'mean_va_baseline', 'mean_va', 'va_change_pct', 'va_inad_pct_baseline', 'va_inad_pct', 'va_inad_change_pp',
+  'n_va_inad_baseline', 'n_va_inad_scenario', 'n_va_inad_averted', 'va_inad_under36_pct', 'va_inad_36to59_pct',
 ];
 
 // Keys that come from coverage x static department totals (06_02x:2117-2130; 06_03x:1501-1550, 2028-2032).
@@ -160,7 +163,47 @@ function preparePathway(P, nd) {
 // With default factors the exported R columns are used unchanged.
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_FACTORS = Object.freeze({ fe: 1.19, zn: 1.38, prot: 1.94, effect: 0.09 });
+export const DEFAULT_FACTORS = Object.freeze({ fe: 1.19, zn: 1.38, prot: 1.94, effect: 0.09, lt: 1, va: 0 });
+
+// ---------------------------------------------------------------------------
+// NUTRIENT-BOOST EXTENSION (not in Azahar's model; see site/nutrients.html)
+//  lt: scale of the lysine + tryptophan term of the covariate (pco) nutrition
+//      index relative to Azahar's QPM (lys x1.98, trp x1.425). 1 = Azahar; 0 =
+//      no amino-acid gain. The per-child term is backed out of the exported
+//      index: dLT = 4 (ni_q - ni_b) - dFe(F0) - dTAZ(F0), and enters linearly.
+//  va: provitamin A content of biofortified maize as a fraction of the breeding
+//      target (VA.target_ug_g). Vitamin A is a fourth nutrient with its own
+//      intake and inadequacy KPIs; it does not enter either stunting pathway.
+// ---------------------------------------------------------------------------
+export const VA_DEFAULTS = Object.freeze({
+  target_ug_g: 15,          // HarvestPlus provitamin A maize target, ug beta-carotene eq. per g grain
+  retention: 0.55,          // kept after storage + nixtamalization + tortilla making
+  bioconversion: 6.5,       // ug beta-carotene per ug retinol, biofortified maize
+  ear: [210, 275],          // ug RAE/day: ages < 48 mo (1-3 y), >= 48 mo (4-8 y)
+  density_per_1000kcal: 230,// usual non-maize vitamin A, ug RAE per 1000 non-maize kcal
+  sd_log: 0.75,             // between-child spread of usual non-maize intake (log scale)
+  conv_ug_g: 0,             // provitamin A of conventional (white) maize, ug beta-carotene eq./g
+});
+
+// standard normal CDF (Abramowitz-Stegun 7.1.26 via erf), |error| < 1.5e-7
+function phi(x) {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x) / Math.SQRT2);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x / 2);
+  return x >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+}
+// per child: usual vitamin A intake (mean) and probability of inadequacy
+function vaChild(age, ekm, ekt, gramsPerKcal, frac, V) {
+  if (Number.isNaN(age) || Number.isNaN(ekm) || Number.isNaN(ekt)) return [NaN, NaN];
+  const maize_g = ekm * gramsPerKcal;
+  const ug_bc = maize_g * (V.conv_ug_g + frac * (V.target_ug_g - V.conv_ug_g)) * V.retention;
+  const fromMaize = ug_bc / V.bioconversion;
+  const median = Math.max(1e-6, V.density_per_1000kcal * Math.max(0, ekt - ekm) / 1000);
+  const ear = age < 48 ? V.ear[0] : V.ear[1];
+  const mean = median * Math.exp(V.sd_log * V.sd_log / 2) + fromMaize;
+  const gap = ear - fromMaize;
+  const p = gap <= 0 ? 0 : phi((Math.log(gap) - Math.log(median)) / V.sd_log);
+  return [mean, p];
+}
 
 function millerTAZ(zn, age, M) {
   const a = M.a * Math.pow(age, M.e);
@@ -207,7 +250,7 @@ function recomputeQpm(S, pathway, F, F0, K, force = false) {
     if (!sameProt) out.prot_q[i] = c.prot_b[i] + X.pr_m[i] * (F.prot - 1);
   }
   let hazChanges;
-  if (pathway === 'pco') hazChanges = force || !(F.fe === F0.fe && F.zn === F0.zn); // NI: Fe, Zn, Lys, Trp
+  if (pathway === 'pco') hazChanges = force || !(F.fe === F0.fe && F.zn === F0.zn && F.lt === F0.lt); // NI: Fe, Zn, Lys, Trp
   else hazChanges = force || !(F.prot === F0.prot && F.effect === F0.effect);      // Gunaratna: protein
   if (!hazChanges) return out;
   out.zlen_q = new Float64Array(n); out.hfa_q = new Float64Array(n);
@@ -219,7 +262,13 @@ function recomputeQpm(S, pathway, F, F0, K, force = false) {
       const age = c.age[i];
       const dfe = zfe(X.fe_n[i] + X.fe_m[i] * (F.fe - 1)) - zfe(X.fe_n[i] + X.fe_m[i] * (F0.fe - 1));
       const dtaz = ztaz(X.zn_n[i] + X.zn_m[i] * (F.zn - 1), age) - ztaz(X.zn_n[i] + X.zn_m[i] * (F0.zn - 1), age);
-      const niq = X.ni_q[i] + (dfe + dtaz) / 4;
+      let niq = X.ni_q[i] + (dfe + dtaz) / 4;
+      if (F.lt !== 1) { // lysine + tryptophan share of the exported QPM index change (extension)
+        const dfe0 = zfe(X.fe_n[i] + X.fe_m[i] * (F0.fe - 1)) - zfe(X.fe_n[i]);
+        const dtaz0 = ztaz(X.zn_n[i] + X.zn_m[i] * (F0.zn - 1), age) - ztaz(X.zn_n[i], age);
+        const dLT = 4 * (X.ni_q[i] - X.ni_b[i]) - dfe0 - dtaz0;
+        niq += (F.lt - 1) * dLT / 4;
+      }
       const z = c.zlen_b[i] + (s(niq) - s(X.ni_b[i]));
       out.zlen_q[i] = z; out.hfa_q[i] = Number.isNaN(z) ? NaN : (z < -2 ? 1 : 0);
     }
@@ -252,12 +301,14 @@ function newGroup() {
     zn: new Mean(), fe: new Mean(), taz: new Mean(), fea: new Mean(), prot: new Mean(),
     maize: new Mean(), ene: new Mean(), ene36: new Mean(), ene59: new Mean(),
     zinad: new Mean(), feinad: new Mean(), prinad: new Mean(),
+    va: new Mean(), vainad: new Mean(), va36: new Mean(), va59: new Mean(),
     zi12: new Mean(), zi35: new Mean(), zi59: new Mean(),
     fe36: new Mean(), fe59: new Mean(), pr36: new Mean(), pr59: new Mean(),
   };
 }
 
-function addChild(g, w, flag, age, hfa, zlen, fe, fea, zn, taz, prot, ekm, ekt, K) {
+function addChild(g, w, flag, age, hfa, zlen, fe, fea, zn, taz, prot, ekm, ekt, K, va) {
+  if (va) { g.va.add(va[0], w); g.vainad.add(va[1], w); if (age < 36) g.va36.add(va[1], w); if (age >= 36) g.va59.add(va[1], w); }
   g.n.add(w);                                   // survey_total(1)             02:828
   g.nbio.add(w * flag);                         // survey_total(flag)          02:829
   g.st.add(Number.isNaN(hfa) ? NaN : (hfa === 1 ? 1 : 0), w); // survey_mean(hfa == 1L) 02:818
@@ -310,6 +361,10 @@ function finishGroup(g) {
     iron_inad_36to59_pct: g.fe59.value() * 100,
     protein_inad_under36_pct: g.pr36.value() * 100,
     protein_inad_36to59_pct: g.pr59.value() * 100,
+    mean_va: g.va.value(),
+    va_inad_pct: g.vainad.value() * 100,
+    va_inad_under36_pct: g.va36.value() * 100,
+    va_inad_36to59_pct: g.va59.value() * 100,
   };
 }
 
@@ -349,7 +404,8 @@ function deptQuantiles(S, d, flagCount, K) {
 }
 
 // One pass: flag prefix per department, aggregate by department and nationally
-function aggregate(S, nd, flagCounts, K, includeQuantiles) {
+function aggregate(S, nd, flagCounts, K, includeQuantiles, vaFrac = 0) {
+  const V = K.va, gpk = 1 / K.maize_kcal_per_g;
   const { cols: c, start, end } = S;
   const groups = Array.from({ length: nd }, newGroup);
   const nat = newGroup();
@@ -363,7 +419,8 @@ function aggregate(S, nd, flagCounts, K, includeQuantiles) {
         q ? c.hfa_q[i] : c.hfa_b[i], q ? c.zlen_q[i] : c.zlen_b[i],
         q ? c.fe_q[i] : c.fe_b[i], q ? c.fea_q[i] : c.fea_b[i],
         q ? c.zn_q[i] : c.zn_b[i], q ? c.taz_q[i] : c.taz_b[i],
-        q ? c.prot_q[i] : c.prot_b[i], c.ekm[i], q ? c.ekt_q[i] : c.ekt[i], K];
+        q ? c.prot_q[i] : c.prot_b[i], c.ekm[i], q ? c.ekt_q[i] : c.ekt[i], K,
+        vaChild(c.age[i], c.ekm[i], c.ekt[i], gpk, q ? vaFrac : 0, V)];
       addChild(groups[d], ...args);
       addChild(nat, ...args);
     }
@@ -404,6 +461,13 @@ function withChanges(row, base) {
   r.zinc_inad_pct_baseline = base.zinc_inad_pct;
   r.iron_inad_pct_baseline = base.iron_inad_pct;
   r.protein_inad_pct_baseline = base.protein_inad_pct;
+  r.mean_va_baseline = base.mean_va;
+  r.va_inad_pct_baseline = base.va_inad_pct;
+  r.va_change_pct = r.mean_va_baseline > 0 ? (r.mean_va - r.mean_va_baseline) / r.mean_va_baseline * 100 : 0;
+  r.va_inad_change_pp = r.va_inad_pct_baseline - r.va_inad_pct;
+  r.n_va_inad_baseline = r.n_children * (r.va_inad_pct_baseline / 100);
+  r.n_va_inad_scenario = r.n_children * (r.va_inad_pct / 100);
+  r.n_va_inad_averted = r.n_va_inad_baseline - r.n_va_inad_scenario;
 
   r.stunting_change_pp = r.stunting_pct_baseline - r.stunting_pct;
   r.stunting_change_pct = r.stunting_pct_baseline > 0
@@ -470,8 +534,9 @@ export function createNutrition(bundleIn) {
     factor_prot: K0.factor_prot ?? 1.94,
     iron_absorption: K0.iron_absorption ?? 0.05,
     miller: K0.miller ?? { k_t: 2.42, a: 0.633, e: 0.311 },
+    va: { ...VA_DEFAULTS, ...(K0.va || {}) },
   };
-  const F0 = { fe: K.factor_fe, zn: K.factor_zn, prot: K.factor_prot, effect: DEFAULT_FACTORS.effect };
+  const F0 = { fe: K.factor_fe, zn: K.factor_zn, prot: K.factor_prot, effect: DEFAULT_FACTORS.effect, lt: 1, va: 0 };
   const ST = B.dept_static || {};
   const stat = {
     population: ST.population ? f64(ST.population, 'population') : new Float64Array(nd).fill(NaN),
@@ -484,15 +549,15 @@ export function createNutrition(bundleIn) {
 
   function resolveFactors(f) {
     const F = { ...F0 };
-    if (f) for (const k of ['fe', 'zn', 'prot', 'effect']) {
+    if (f) for (const k of ['fe', 'zn', 'prot', 'effect', 'lt', 'va']) {
       if (f[k] !== undefined && f[k] !== null && !Number.isNaN(Number(f[k]))) F[k] = Number(f[k]);
     }
     return F;
   }
   const factorCache = new Map();
   function factorState(pw, S, F) {
-    if (F.fe === F0.fe && F.zn === F0.zn && F.prot === F0.prot && F.effect === F0.effect) return S;
-    const key = `${pw}|${F.fe}|${F.zn}|${F.prot}|${F.effect}`;
+    if (F.fe === F0.fe && F.zn === F0.zn && F.prot === F0.prot && F.effect === F0.effect && F.lt === F0.lt) return S;
+    const key = `${pw}|${F.fe}|${F.zn}|${F.prot}|${F.effect}|${F.lt}`;
     let st = factorCache.get(key);
     if (!st) {
       st = { ...S, cols: { ...S.cols, ...recomputeQpm(S, pw, F, F0, K) } };
@@ -563,7 +628,7 @@ export function createNutrition(bundleIn) {
     }
     // 2. aggregate
     const base = baselineAgg(pathway);
-    const agg = penetration === 0 ? base : aggregate(SF, nd, flagCounts, K, includeQuantiles);
+    const agg = penetration === 0 ? base : aggregate(SF, nd, flagCounts, K, includeQuantiles, F.va);
     // 3. departments
     const departments = [];
     for (let d = 0; d < nd; d++) {

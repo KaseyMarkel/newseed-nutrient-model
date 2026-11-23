@@ -18,7 +18,7 @@ const NUM = {
   price_sale: [0, 1e5, true], mz_to_ha: [0, 10, true], qq_to_mt: [0, 1, true],
   consumption_fsi_kg: [0, 2000, true], kg_to_qq: [0, 1000, true],
   fe_mg_per_g_maize: [0, 1], zn_mg_per_g_maize: [0, 1],
-  factor_fe: [0, 5], factor_zn: [0, 5], factor_prot: [0, 5], gunaratna_effect_size: [0, 1],
+  factor_fe: [0, 5], factor_zn: [0, 5], factor_prot: [0, 5], gunaratna_effect_size: [0, 1], lystrp_scale: [0, 5], va_fraction: [0, 1],
   gravity_tolerance: [0, 1e9, true], gravity_beta: [0, 10], bags_per_ha: [0, 100, true],
 };
 const INT = { gravity_max_iterations: [1, 1000], grid_n_intervals: [100, 1e7] };
