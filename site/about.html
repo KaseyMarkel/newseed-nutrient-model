@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About · New Seed Guatemala model replica</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23b1443b'/%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app"></div>
+<div class="layout single"><main class="content">
+<div class="page-title"><h1>About this replica</h1><span class="sub">How the model chains together, and what this site is.</span></div>
+<div class="card"><div class="card-body prose">
+<p>This site reproduces the <a href="https://newseed.azahardata.com/app-guatemala/" target="_blank" rel="noopener">New Seed dashboard</a> built by Azahar Data Insights, using the calculations published in Azahar&rsquo;s <a href="https://github.com/Azahar-Data-Insights/newseed-biofortification-guatemala-public" target="_blank" rel="noopener">public repository</a> (v4.4.0, commit a4b2f91). The point of the replica is that the model becomes something you can change: add a seed that does not exist yet, alter the subsidy, or touch any constant, and see what the model says.</p>
+
+<h2>The chain, in plain words</h2>
+<div class="chain">
+  <div class="step e"><b>1. Seed yield</b><span>Each seed variety changes yield by farmer segment (OPV/criollo, low, mid and high hybrid users). The 2022, 2026 and 2028 seeds are Azahar&rsquo;s official variants. The 2030 seed is New Seed&rsquo;s model scenario (the 2028 seed with 10% more yield in every segment), built into this site; the Scenario Lab lets you add more.</span></div>
+  <div class="step e"><b>2. Adoption</b><span>Farmers (ENCOVI 2023, calibrated to MAGA land and production) are ranked by how likely they are to adopt. The share-of-maize-land slider (Azahar&rsquo;s &ldquo;penetration&rdquo;) is the national share of maize land under biofortified seed; the model reads off which farmers have entered the pool and how much of their land has converted.</span></div>
+  <div class="step e"><b>3. Production and income</b><span>Converted land times the yield change gives extra maize; extra maize times the farm-gate price minus the seed-cost difference gives the income change. The subsidy regime sets what New Seed pays per manzana and what farmers pay for seed.</span></div>
+  <div class="step e"><b>4. Distribution to departments</b><span>Biofortified maize is produced where adopters are, but eaten where people are. A gravity model on a travel-time matrix moves surplus between departments, giving each department&rsquo;s share of maize consumption that is biofortified (coverage).</span></div>
+  <div class="step n"><b>5. Children reached</b><span>Within each department, children are flagged as eating biofortified maize until the coverage target is met, in priority order: cereal-farming households first, then other farmers, agricultural workers, rural non-farm households, and urban households last.</span></div>
+  <div class="step n"><b>6. Nutrients</b><span>For each child, maize intake comes from ENCOVI diets transferred to SIVESNU anthropometry. Biofortified maize raises iron (+19%), zinc (+38%) and quality protein (lysine, tryptophan), adjusted for bioavailability. Inadequacy is intake below the age-specific threshold.</span></div>
+  <div class="step n"><b>7. Stunting</b><span>Two pathways: the covariate pathway fits a GAM of height-for-age on a nutritional index and applies it child by child; the meta-analysis pathway applies Gunaratna et al. (2010), a 9% higher growth velocity for QPM consumers. Stunting is height-for-age below &minus;2 SD among children 6&ndash;59 months.</span></div>
+</div>
+<p>Every dashboard page is one scenario of this chain: a seed, a subsidy regime, a stunting pathway and a share of maize land planted with biofortified seed. The Compare tool runs the world without biofortified seed, a baseline seed and a new seed through the same chain and shows the impact of each and the change in impact.</p>
+
+<h2>Units and conversions</h2>
+<p>The engine works in Azahar&rsquo;s native units: quetzales, manzanas and quintales. The toggles convert for display using the constants in the R code and the live app: 0.7 ha per manzana, 0.04536 metric tons per quintal, and GTQ 7.80 per US dollar (read from the dashboard&rsquo;s currency toggle on 2026-10-29; Azahar&rsquo;s R code does not contain the exchange rate, so the Shiny app applies it). &ldquo;Bags of seed subsidized&rdquo; is one 20&nbsp;kg bag per hectare, as the live app shows.</p>
+
+<h2>How exact it is</h2>
+<p>The site runs the JavaScript port of Azahar&rsquo;s model (<code>engine/engine.js</code>) on data exported from our run of their R code. It was compared, value by value, with that R run and with the live dashboard&rsquo;s full download: every official seed, subsidy, pathway, share of maize land and department agrees. The 2030 seed is checked the same way against our R run with that seed.</p>
+<p>The Explorer also shows the numbers the way the live dashboard does: every tile, list item, Department Table cell, map colour and hover, chart under the map, box-plot hover and KPI Trends point was compared with what the live app displayed in all 198 of its states (599,568 displayed values, no differences). Three differences are on purpose and never change a number: a difference of two percentages is labelled pp where the live app writes % or no unit; the Department Table keeps 2 decimals for intakes (the live table rounds 1.12 mg/d to &ldquo;1&rdquo;); and in manzana mode the area tile says &ldquo;Manzanas planted&rdquo; (the live app keeps &ldquo;Hectares planted&rdquo; next to a value in mz).</p>
+<p>If the data files in <code>site/data/</code> were missing, a placeholder engine would run instead and a yellow banner would say so.</p>
+
+<h2>Reading the Compare tool</h2>
+<p>Compare shows three worlds side by side: no biofortified seed (0% of maize land), the baseline seed and the new seed, each at the same share of maize land, and the change in impact. Differences of percentages are in percentage points (pp); a % in brackets is a change relative to the baseline&rsquo;s impact. Stunting cases averted move in steps because the model represents children with about 4,000 survey profiles and counts a case only when a child&rsquo;s height-for-age crosses &minus;2; children reached and mean HAZ gain move smoothly.</p>
+
+<h2>Sources</h2>
+<ul>
+  <li><a href="https://github.com/Azahar-Data-Insights/newseed-biofortification-guatemala-public" target="_blank" rel="noopener">Azahar&rsquo;s public repository</a>: the R/Quarto pipeline (modules 00&ndash;06) this replica follows. Module 06 (<code>06_scenario_precomputation</code>) defines every KPI shown here.</li>
+  <li><a href="https://newseed.azahardata.com/web-guatemala/index.html" target="_blank" rel="noopener">Methodological documentation</a>: Azahar&rsquo;s methodology site.</li>
+  <li><a href="https://newseed.azahardata.com/app-guatemala/" target="_blank" rel="noopener">The live dashboard</a>: the reference for layout, labels and numbers.</li>
+  <li>Map: <a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries</a> gbOpen GTM ADM1 (simplified), CC BY 4.0.</li>
+</ul>
+<p>Data: ENCOVI 2023 (INE), SIVESNU (INCAP), MAGA agricultural statistics, INCAP food composition tables; see the methodology site for the full list.</p>
+</div></div>
+</main></div>
+<script type="module">
+import { loadEngine } from './js/config.js';
+import { renderHeader, renderBanner, renderFooter } from './js/ui.js';
+const info = await loadEngine();
+const app = document.getElementById('app');
+app.replaceChildren(renderHeader('about'), renderBanner(info));
+document.body.append(renderFooter());
+</script>
+</body>
+</html>
