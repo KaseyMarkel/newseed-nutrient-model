@@ -23,3 +23,13 @@ all-zero boosts give zero effect), `node tools/va_age.mjs`.
   added to non-maize intake (median 850 µg RAE/d × (non-maize kcal/418)^0.25, CV 0.6;
   calibrated to Mayan children 2-5 y: 1-3% below EAR). Inadequacy = P(intake < IOM EAR
   210/275). Not linked to stunting. Sources in site/js/evidence.js.
+
+## Hosting
+GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
+https://kaseymarkel.com/newseed-nutrient-model/ . Pages carry `noindex`.
+
+## Data
+`site/data/bundle_*.json` is the replica's processed bundle (per-child and per-farmer
+records derived from ENCOVI 2023 and SIVESNU 2018, no identifiers). Azahar's public repo
+ships code only and does not distribute these files; they are public here by choice,
+as they already are on the replica.
