@@ -1,5 +1,5 @@
 // Input parsing and guardrails for the Scenario Lab (and for scenarios imported from JSON).
-import { validateScenario as engineValidate } from '../../engine/validate.js';
+import { validateScenario as engineValidate } from '../engine/validate.js';
 // The engine accepts almost any number and returns nonsense rather than failing
 // (a -200% yield gives negative coverage, a fractional grid changes adoption, a zero
 // consumption gives empty coverage), so the site checks inputs before running.
