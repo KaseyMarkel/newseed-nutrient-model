@@ -2,7 +2,7 @@
 import { getState, setState } from './state.js';
 import { tileTexts, econTexts } from './display.js';
 import { DEPARTMENTS } from './mock_reference.js';
-import { BOOSTS, PRESETS, boostsOf, cleanBoosts, isDefaultBoost } from './boosts.js';
+import { BOOSTS, GROUPS, PRESETS, boostsOf, cleanBoosts, isDefaultBoost } from './boosts.js';
 const setBoosts = b => setState({ boosts: cleanBoosts(b) });
 
 export function h(tag, attrs = {}, ...children) {
@@ -266,28 +266,44 @@ export function buildSidebar(opts) {
   return wrap;
 }
 
-// Four 0-100% sliders; the engine runs when a slider is released.
+// Nutrient sliders, 0-100%; the engine runs when a slider is released. Core nutrients first,
+// then exploratory groups (collapsed), each slider with a flag on where it would matter.
+const FLAG_CLASS = { gt: 'fl-gt', none: 'fl-none', route: 'fl-route', elsewhere: 'fl-none' };
+function boostRow(x, b) {
+  const pre = x.id === 'va' || x.pctOfTarget ? '' : '+';
+  const chip = h('span', { class: 'boost-val' }, pre + b[x.id] + '%');
+  const range = h('input', { type: 'range', class: 'boost', id: 'boost-' + x.id, min: 0, max: 100, step: 1, value: b[x.id], 'aria-label': `${x.label}: ${x.unit}`, style: { '--c': x.color } });
+  range.addEventListener('input', () => { chip.textContent = pre + range.value + '%'; });
+  range.addEventListener('change', () => setBoosts({ ...boostsOf(getState()), [x.id]: +range.value }));
+  const mark = x.def ? h('span', { class: 'boost-def', title: `Replica value: ${x.def}%`, style: { left: `calc(${x.def}% + ${(8 - x.def * 0.16).toFixed(2)}px)` } }) : null;
+  return h('div', { class: 'boost-row' + (x.group === 'core' && x.extra ? ' extra' : '') },
+    h('div', { class: 'boost-head' }, h('span', { class: 'boost-name' }, h('i', { style: { background: x.color } }), x.label, x.group === 'core' && x.extra ? h('em', {}, 'new') : null), chip),
+    h('div', { class: 'boost-track' }, range, mark),
+    h('div', { class: 'boost-hint' }, x.unit + ' · ' + x.hint),
+    x.flag ? h('div', { class: 'boost-flag ' + (FLAG_CLASS[x.flag.kind] || '') }, x.flag.text) : null);
+}
 export function boostAccordion(open = true) {
   const b = boostsOf(getState());
-  const rows = BOOSTS.map(x => {
-    const chip = h('span', { class: 'boost-val' }, (x.id === 'va' ? '' : '+') + b[x.id] + '%');
-    const range = h('input', { type: 'range', class: 'boost', min: 0, max: 100, step: 1, value: b[x.id], 'aria-label': `${x.label}: ${x.unit}`, style: { '--c': x.color } });
-    range.addEventListener('input', () => { chip.textContent = (x.id === 'va' ? '' : '+') + range.value + '%'; });
-    range.addEventListener('change', () => setBoosts({ ...boostsOf(getState()), [x.id]: +range.value }));
-    const mark = h('span', { class: 'boost-def', title: `Replica value: ${x.def}%`, style: { left: `calc(${x.def}% + ${(8 - x.def * 0.16).toFixed(2)}px)` } });
-    return h('div', { class: 'boost-row' + (x.extra ? ' extra' : '') },
-      h('div', { class: 'boost-head' }, h('span', { class: 'boost-name' }, h('i', { style: { background: x.color } }), x.label, x.extra ? h('em', {}, 'new') : null), chip),
-      h('div', { class: 'boost-track' }, range, x.def ? mark : null),
-      h('div', { class: 'boost-hint' }, x.unit + ' · ' + x.hint));
-  });
+  const body = [];
+  for (const g of GROUPS) {
+    const items = BOOSTS.filter(x => x.group === g.id);
+    if (!items.length) continue;
+    const rows = items.map(x => boostRow(x, b));
+    if (g.id === 'core') { body.push(...rows); continue; }
+    const active = items.filter(x => b[x.id] > 0).length;
+    const det = h('details', { class: 'boost-group', open: active ? true : null },
+      h('summary', {}, g.label, h('span', { class: 'cnt' }, active ? `${active} on` : `${items.length}`)),
+      g.note ? h('div', { class: 'boost-gnote' }, g.note) : null, ...rows);
+    body.push(det);
+  }
   const presets = h('div', { class: 'boost-presets' }, PRESETS.map(p => {
     const on = BOOSTS.every(x => p.b[x.id] === b[x.id]);
     return h('button', { class: 'btn small' + (on ? ' on' : ''), onClick: () => setBoosts(p.b) }, p.label);
   }));
   const note = h('div', { class: 'note info' }, isDefaultBoost(b)
     ? 'At the replica values every number equals the replica’s. Tick marks show those values.'
-    : 'Boosts differ from the replica. Iron, zinc and protein change the existing KPIs; provitamin A and folate show on the Nutrient Boosts page.');
-  return accordion('Nutrient content boost', 'slider', [...rows, presets, note], open);
+    : 'Boosts differ from the replica. Iron, zinc and protein change the existing KPIs; the other nutrients show on the Nutrient Boosts page.');
+  return accordion('Nutrient content boost', 'slider', [...body, presets, note], open);
 }
 
 // Drawer behaviour for phones

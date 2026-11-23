@@ -131,7 +131,7 @@ export function createEngine(bundle, opts = {}) {
     if (decisions && Array.isArray(handoff.departments)) handoff = applyBoundary(handoff, decisions);
     const factors = { fe: params.factor_fe, zn: params.factor_zn, prot: params.factor_prot,
       effect: params.gunaratna_effect_size, lt: params.lystrp_scale, va: params.va_fraction };
-    const n = nut.run(pathway, handoff, { includeQuantiles: params.include_quantiles !== false, factors });
+    const n = nut.run(pathway, handoff, { includeQuantiles: params.include_quantiles !== false, factors, extras: params.extra_nutrients });
     const econByRegion = new Map((e.departments || []).map((r) => [r.region ?? r.departamento, r]));
     const departments = n.departments.map((r) => mergeRow(econByRegion.get(r.region), r, !!override));
     const national = mergeRow(e.national, n.national, !!override);

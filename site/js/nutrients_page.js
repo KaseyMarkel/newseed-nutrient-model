@@ -5,6 +5,7 @@ import { fmtNum } from './units.js';
 import { drawMap } from './map.js';
 import { BOOSTS, BOOST_DEFAULTS, ENGINE_BOOSTS, boostParams, cleanBoosts, isDefaultBoost } from './boosts.js';
 import { healthOutcomes, HEALTH_DEFAULTS } from './health.js';
+import { CATALOG } from './nutrient_catalog.js';
 import { EVIDENCE, EVIDENCE_NOTE } from './evidence.js';
 import { yieldToUI } from './runner.js';
 
@@ -14,6 +15,7 @@ const SWEEP = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 // the inadequacy KPI that belongs to each slider
 const INAD = { fe: 'iron_inad_pct', zn: 'zinc_inad_pct', prot: 'protein_inad_pct', va: 'va_inad_pct' };
 const INAD_LABEL = { fe: 'Iron (absorbed)', zn: 'Zinc (absorbed)', prot: 'Utilizable protein', va: 'Vitamin A' };
+for (const x of CATALOG) if (x.model && x.model.p0 > 0) { INAD[x.id] = `x_${x.id}_inad_pct`; INAD_LABEL[x.id] = x.label; }
 
 export function buildNutrientsSkeleton(contentEl) {
   const sk = {};
@@ -22,7 +24,7 @@ export function buildNutrientsSkeleton(contentEl) {
   const top = card('National results at this boost', 'info', [sk.intro, h('div', { class: 'card-body' }, sk.tiles)]);
   sk.health = h('div', { class: 'card-body' });
   const hc = card('Health gains beyond stunting (per year)', 'list', sk.health,
-    { foot: 'Annual, at full uptake of this scenario. DALYs = disability-adjusted life years averted. Stunting itself carries no DALY weight and is not included.' });
+    { foot: 'Annual, at full uptake of this scenario. DALYs = disability-adjusted life years averted, undiscounted.' });
   sk.contrib = h('div', { class: 'plot' });
   sk.inad = h('div', { class: 'plot' });
   const c1 = card('Stunting averted: each nutrient alone vs all together', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, sk.contrib),
@@ -43,7 +45,14 @@ export function buildNutrientsSkeleton(contentEl) {
   sk.vaMapTitle = c5.querySelector('.ttl');
   sk.evidence = h('div', { class: 'card-body' });
   const c6 = card('What the research says each nutrient does', 'list', sk.evidence);
-  contentEl.append(top, hc, h('div', { class: 'two-col' }, c1, c2), sk.sweepStatus, h('div', { class: 'two-col' }, c3, c4), h('div', { class: 'two-col' }, c5, c6));
+  sk.dalyBars = h('div', { class: 'plot' });
+  const cD = card('DALYs averted per year, by nutrient', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, sk.dalyBars),
+    { foot: 'From the health table above; low-confidence pathways count only when ticked there.' });
+  sk.sweepDaly = h('div', { class: 'plot' });
+  const cDS = card('Dose-response: DALYs averted per year as one boost goes 0 → 100%', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, sk.sweepDaly),
+    { foot: 'One line per slider that changes DALYs; the other sliders stay where they are. Dots = current setting.' });
+  contentEl.append(top, hc, h('div', { class: 'two-col' }, c1, cD), h('div', { class: 'two-col' }, c2, c5), sk.sweepStatus,
+    h('div', { class: 'two-col' }, c3, cDS), h('div', { class: 'two-col' }, c4, c6));
   renderEvidence(sk.evidence);
   return sk;
 }
@@ -60,6 +69,8 @@ export async function renderNutrients(sk, opts) {
   const b = cleanBoosts(opts.boosts);
   const run = (bb, extra = {}) => runner.run({ ...spec, ...extra, params: boostParams(bb) });
   const res = run(b);
+  const hp = opts.health || HEALTH_DEFAULTS;
+  const health = healthOutcomes(res, b, hp);
   const rep = run(BOOST_DEFAULTS);
   const n = res.national, r0 = rep.national;
   const diff = !isDefaultBoost(b);
@@ -75,13 +86,23 @@ export async function renderNutrients(sk, opts) {
 
   sk.tiles.replaceChildren(
     tile('Stunting cases averted', fmtNum(n.n_stunting_averted, 0), `${fmtNum(n.stunting_change_pp, 2)} pp` + (diff ? ` · replica: ${fmtNum(r0.n_stunting_averted, 0)}` : ''), 'hl'),
+    tile('DALYs averted per year', fmtNum(health.dalys, 0), (hp.stunting_dalys ? 'includes stunting deaths' : 'stunting not included') + (hp.mortality ? ' · deaths counted' : ''), 'hl'),
     tile('Iron inadequacy', fmtNum(n.iron_inad_pct, 1) + '%', `${pp(n.iron_inad_change_pp)} vs before` + (diff ? ` · ${vsRep('iron_inad_pct', 1)}%` : '')),
     tile('Zinc inadequacy', fmtNum(n.zinc_inad_pct, 1) + '%', `${pp(n.zinc_inad_change_pp)} vs before` + (diff ? ` · ${vsRep('zinc_inad_pct', 1)}%` : '')),
     tile('Protein inadequacy', fmtNum(n.protein_inad_pct, 1) + '%', `${pp(n.protein_inad_change_pp)} vs before` + (diff ? ` · ${vsRep('protein_inad_pct', 1)}%` : '')),
-    tile('Vitamin A inadequacy', fmtNum(n.va_inad_pct, 1) + '%', `${pp(n.va_inad_change_pp)} vs before`, 'new'),
-    tile('Children above the vitamin A EAR thanks to maize', fmtNum(n.n_va_inad_averted, 0), `mean intake ${fmtNum(n.mean_va_baseline, 0)} → ${fmtNum(n.mean_va, 0)} µg RAE/d`, 'new'));
+    tile('Vitamin A inadequacy', fmtNum(n.va_inad_pct, 1) + '%', `${pp(n.va_inad_change_pp)} vs before · ${fmtNum(n.n_va_inad_averted, 0)} children`, 'new'));
 
-  renderHealth(sk.health, res, b, opts.health || HEALTH_DEFAULTS, opts.onHealth);
+  renderHealth(sk.health, res, b, hp, opts.onHealth);
+  // DALYs by nutrient
+  const dn = BOOSTS.filter(x => (health.byNutrient[x.id] || 0) > 0).map(x => ({ lab: x.label, v: health.byNutrient[x.id], c: x.color }));
+  if (health.byNutrient.stunt) dn.push({ lab: 'Stunting (child deaths)', v: health.byNutrient.stunt, c: '#2e7d4f' });
+  dn.sort((a, c) => c.v - a.v);
+  await Plotly.react(sk.dalyBars, [{ type: 'bar', orientation: 'h', y: dn.map(x => x.lab), x: dn.map(x => x.v), marker: { color: dn.map(x => x.c) },
+    text: dn.map(x => fmtNum(x.v, 0)), textposition: 'auto', hovertemplate: '%{y}: %{x:,.0f} DALYs/yr<extra></extra>' }],
+  { font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 10, r: 20, t: 10, b: 45 }, height: 300,
+    xaxis: { title: { text: 'DALYs averted per year' }, gridcolor: '#eee8e2', rangemode: 'tozero' }, yaxis: { automargin: true, autorange: 'reversed' },
+    annotations: dn.length ? [] : [{ text: 'No DALYs at these settings', showarrow: false, xref: 'paper', yref: 'paper', x: 0.5, y: 0.5 }] }, CFG);
+  if (stale()) return;
 
   // contribution bars
   const alone = BOOSTS.filter(x => ['fe', 'zn', 'prot'].includes(x.id)).map(x => {
@@ -100,7 +121,7 @@ export async function renderNutrients(sk, opts) {
   if (stale()) return;
 
   // inadequacy before / after
-  const ids = ['fe', 'zn', 'prot', 'va'];
+  const ids = ['fe', 'zn', 'prot', 'va', ...CATALOG.filter(x => INAD[x.id] && b[x.id] > 0).map(x => x.id)];
   const before = ids.map(id => n[INAD[id] + '_baseline']);
   const after = ids.map(id => n[INAD[id]]);
   const labs = ids.map(id => INAD_LABEL[id]);
@@ -129,22 +150,30 @@ export async function renderNutrients(sk, opts) {
     sk.sweepStatus.style.display = '';
     await yieldToUI();
     if (stale()) return;
-    const ys = SWEEP.map(v => run({ ...b, [x.id]: v }).national);
-    lines.push({ x, ys });
+    const rs = SWEEP.map(v => runner.run({ ...spec, params: { ...boostParams({ ...b, [x.id]: v }), include_quantiles: false } }));
+    lines.push({ x, ys: rs.map(r => r.national), dalys: rs.map((r, i) => healthOutcomes(r, { ...b, [x.id]: SWEEP[i] }, hp).dalys) });
   }
   sk.sweepStatus.style.display = 'none';
   const lay = (yt, suffix = '') => ({ font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 60, r: 10, t: 30, b: 45 }, height: 320,
     xaxis: { title: { text: 'Boost (%)' }, ticksuffix: '%', gridcolor: '#eee8e2', range: [-2, 102] }, yaxis: { title: { text: yt }, ticksuffix: suffix, gridcolor: '#eee8e2', rangemode: 'tozero' },
     legend: { orientation: 'h', y: 1.14 }, hovermode: 'x unified' });
   const cur = (x, val) => ({ type: 'scatter', mode: 'markers', showlegend: false, x: [b[x.id]], y: [val], marker: { color: x.color, size: 11, line: { color: '#fff', width: 2 } }, hoverinfo: 'skip' });
-  const stuntLines = lines.filter(l => l.x.id !== 'va');
+  const stuntLines = lines.filter(l => ['fe', 'zn', 'prot'].includes(l.x.id));
+  // DALY sweep: engine sweeps plus non-engine sliders (folate) on the current result
+  const dl = lines.map(l => ({ x: l.x, y: l.dalys }));
+  for (const x of BOOSTS.filter(z => !ENGINE_BOOSTS.includes(z.id))) dl.push({ x, y: SWEEP.map(v => healthOutcomes(res, { ...b, [x.id]: v }, hp).dalys) });
+  const dlv = dl.filter(l => l.y.some(v => Math.abs(v - l.y[0]) > 1e-6));
+  await Plotly.react(sk.sweepDaly, [
+    ...dlv.map(l => ({ type: 'scatter', mode: 'lines', name: l.x.label, x: SWEEP, y: l.y, line: { color: l.x.color, width: 2.4 }, hovertemplate: '%{y:,.0f}' })),
+    ...dlv.map(l => cur(l.x, health.dalys))], lay('DALYs averted per year'), CFG);
+  if (stale()) return;
   await Plotly.react(sk.sweepStunt, [
     ...stuntLines.map(l => ({ type: 'scatter', mode: 'lines', name: l.x.label, x: SWEEP, y: l.ys.map(r => r.n_stunting_averted), line: { color: l.x.color, width: 2.4 }, hovertemplate: '%{y:,.0f}' })),
     ...stuntLines.map(l => cur(l.x, n.n_stunting_averted))], lay('Children with stunting averted'), CFG);
   if (stale()) return;
   await Plotly.react(sk.sweepInad, [
-    ...lines.map(l => ({ type: 'scatter', mode: 'lines', name: INAD_LABEL[l.x.id], x: SWEEP, y: l.ys.map(r => r[INAD[l.x.id]]), line: { color: l.x.color, width: 2.4 }, hovertemplate: '%{y:.1f}%' })),
-    ...lines.map(l => cur(l.x, n[INAD[l.x.id]]))], lay('Inadequate intake (%)', '%'), CFG);
+    ...lines.filter(l => INAD[l.x.id]).map(l => ({ type: 'scatter', mode: 'lines', name: INAD_LABEL[l.x.id], x: SWEEP, y: l.ys.map(r => r[INAD[l.x.id]]), line: { color: l.x.color, width: 2.4 }, hovertemplate: '%{y:.1f}%' })),
+    ...lines.filter(l => INAD[l.x.id]).map(l => cur(l.x, n[INAD[l.x.id]]))], lay('Inadequate intake (%)', '%'), CFG);
 }
 
 function renderEvidence(el) {
@@ -155,7 +184,8 @@ function renderEvidence(el) {
 }
 
 const NUT_COLOR = Object.fromEntries(BOOSTS.map(x => [x.id, x.color]));
-const NUT_NAME = Object.fromEntries(BOOSTS.map(x => [x.id, x.label]));
+const NUT_NAME = { ...Object.fromEntries(BOOSTS.map(x => [x.id, x.label])), stunt: 'Stunting' };
+NUT_COLOR.stunt = '#2e7d4f';
 function renderHealth(el, res, b, hp, onHealth) {
   const out = healthOutcomes(res, b, hp);
   const fmtV = v => v >= 100 ? fmtNum(v, 0) : fmtNum(v, 1);
@@ -169,7 +199,7 @@ function renderHealth(el, res, b, hp, onHealth) {
   const table = h('div', { class: 'table-wrap' }, h('table', { class: 'dt health' },
     h('thead', {}, h('tr', {}, h('th', {}, 'Outcome averted'), h('th', { class: 'num' }, 'Nutrient'), h('th', { class: 'num' }, 'Cases / yr'), h('th', { class: 'num' }, 'DALYs / yr'), h('th', {}, 'Evidence'))),
     h('tbody', {}, ...main.map(row),
-      h('tr', { class: 'sep' }, h('td', { colspan: 5 }, 'Low-confidence pathways' + (hp.mortality ? ' (counted in the total)' : ' (shown, not counted)'))),
+      h('tr', { class: 'sep' }, h('td', { colspan: 5 }, 'Low-confidence pathways (counted only when ticked below)')),
       ...spec.map(row),
       h('tr', { class: 'total' }, h('td', {}, 'Total DALYs averted per year'), h('td'), h('td'), h('td', { class: 'num' }, fmtNum(out.dalys, 0)), h('td')))));
   const set = patch => onHealth && onHealth({ ...hp, ...patch });
@@ -184,13 +214,18 @@ function renderHealth(el, res, b, hp, onHealth) {
   fol.addEventListener('change', () => { const v = +fol.value; if (Number.isFinite(v)) set({ serum_folate0: Math.min(40, Math.max(2, v)) }); });
   const mort = h('input', { id: 'hp-mort', type: 'checkbox', checked: hp.mortality ? true : null });
   mort.addEventListener('change', () => set({ mortality: mort.checked }));
+  const stu = h('input', { id: 'hp-stunt', type: 'checkbox', checked: hp.stunting_dalys ? true : null });
+  stu.addEventListener('change', () => set({ stunting_dalys: stu.checked }));
   const controls = h('div', { class: 'hp-controls' },
     h('label', {}, h('span', {}, 'Child anemia baseline'), sel),
     h('label', {}, h('span', {}, 'Zinc: share of the trial effect a food keeps ', discV), disc),
     h('label', {}, h('span', {}, "Women's baseline serum folate (ng/mL)"), fol),
-    h('label', { class: 'chk' }, mort, h('span', {}, 'Count child deaths (zinc, vitamin A) in the total')));
+    h('label', { class: 'chk' }, mort, h('span', {}, 'Count child deaths and other low-confidence pathways in the total')),
+    h('label', { class: 'chk' }, stu, h('span', {}, 'Count stunting, through its link to child deaths')));
   const notes = h('div', { class: 'note info' },
-    'Stunting averted, the model’s main result, is not in this total: GBD gives stunting no disability weight of its own. ',
+    hp.stunting_dalys
+      ? 'Stunting is counted through its link to child deaths, a low-confidence estimate that dominates the total when ticked. '
+      : 'Stunting averted, the model’s main result, is not in this total: GBD gives stunting no disability weight of its own. Tick “Count stunting” to add it through its link to child deaths. ',
     'A cost per DALY is deliberately not shown: New Seed’s subsidy also pays for yield, income and stunting gains that DALYs leave out.',
     b.fol ? '' : ' Move the Folate slider to see neural tube defects averted.');
   el.replaceChildren(table, controls, notes);

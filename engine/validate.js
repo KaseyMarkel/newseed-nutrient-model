@@ -102,6 +102,13 @@ export function validateScenario(scenario, departments = [], { bioCostNoSubsidyD
           if (departments.length && !departments.includes(dk)) problems.push(`params.coverage_override has an unknown department "${dk}"`);
           if (!isNum(dv) || dv < 0 || dv > 100) problems.push(`params.coverage_override.${dk} must be a percent from 0 to 100, got ${JSON.stringify(dv)}`);
         }
+      } else if (k === 'extra_nutrients') {
+        if (v === null || typeof v !== 'object' || Array.isArray(v)) problems.push('params.extra_nutrients must be an object');
+        else for (const [ek, ev] of Object.entries(v)) {
+          const ok = ev && typeof ev === 'object' && isNum(ev.add_per_g) && ev.add_per_g >= 0 && isNum(ev.p0) && ev.p0 >= 0 && ev.p0 <= 1
+            && Array.isArray(ev.ear) && ev.ear.length === 2 && ev.ear.every(x => isNum(x) && x > 0) && (ev.sd_log === undefined || (isNum(ev.sd_log) && ev.sd_log > 0));
+          if (!ok) problems.push(`params.extra_nutrients.${ek} needs add_per_g >= 0, p0 in [0, 1], ear [two positive numbers], optional sd_log > 0`);
+        }
       } else {
         problems.push(`params.${k} is not a model parameter`);
       }

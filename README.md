@@ -34,6 +34,14 @@ the subsidy also buys yield, income and stunting gains. Test: `node tools/test_h
 Nutrients screened and not added (calcium, niacin, riboflavin, B6, vitamin E, selenium, iodine, B12,
 lutein, low phytate): see site/js/evidence.js.
 
+## Exploratory nutrients (site/js/nutrient_catalog.js)
+15 more sliders, grouped: Guatemala shortfall (vitamin C, choline, omega-3 ALA modeled for inadequacy; vitamin E
+flag only), shortfall elsewhere (iodine, selenium, niacin, calcium, riboflavin, B6, thiamin, magnesium, low
+phytate: flag only), no route into maize (B12 modeled hypothetically, vitamin D flag only). Modeled ones use the
+engine's generic `extra_nutrients` path (lognormal intake calibrated to Guatemalan prevalence). Each slider
+carries a flag: modeled here / no projected effect here (effect elsewhere) / no known route into maize.
+Stunting can be counted in DALYs (opt-in) via Olofin 2013 mortality HRs. Test: `node tools/test_extras.mjs`.
+
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
 https://kaseymarkel.com/newseed-nutrient-model/ . Pages carry `noindex`.

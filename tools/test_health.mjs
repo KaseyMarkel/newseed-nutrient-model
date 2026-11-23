@@ -18,3 +18,8 @@ show('Replica + VA + folate', { fe: 19, zn: 38, prot: 94, va: 100, fol: 100 });
 show('Everything 100, mortality on', { fe: 100, zn: 100, prot: 100, va: 100, fol: 100 }, 0.5, { ...HEALTH_DEFAULTS, mortality: true });
 show('Replica, ENSMI anemia', { fe: 19, zn: 38, prot: 94 }, 0.5, { ...HEALTH_DEFAULTS, anemia_baseline: 'ensmi' });
 show('All zero', { fe: 0, zn: 0, prot: 0, va: 0, fol: 0 });
+show('Replica + stunting DALYs', { fe: 19, zn: 38, prot: 94 }, 0.5, { ...HEALTH_DEFAULTS, stunting_dalys: true });
+{ const b = cleanBoosts({ fe: 19, zn: 38, prot: 94, vc: 100, cho: 100, n3: 100, b12: 100 });
+  const r = eng.run({ seed, subsidy: sub, pathway: 'pco', penetration: 0.5, params: boostParams(b) }).national;
+  for (const id of ['vc', 'cho', 'n3', 'b12']) console.log(id, 'inadequacy', r[`x_${id}_inad_pct_baseline`].toFixed(1), '->', r[`x_${id}_inad_pct`].toFixed(1), '%');
+  console.log('stunting averted with extras', r.n_stunting_averted.toFixed(0)); }

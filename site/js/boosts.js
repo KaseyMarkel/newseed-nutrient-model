@@ -9,25 +9,37 @@
 // Protein quality drives stunting in both pathways, scaled linearly from Azahar's QPM:
 //   covariate:     lysine + tryptophan term of the nutrition index x (boost / 94)
 //   meta-analysis: Gunaratna growth effect 0.09 x (boost / 94)
-// No imports: state.js depends on this module.
+// Imports only the dependency-free catalog: state.js depends on this module.
+import { CATALOG } from './nutrient_catalog.js';
 
 export const AZAHAR_QPM_BOOST = 94; // factor_prot 1.94
 export const GUNARATNA_EFFECT = 0.09;
 
-export const BOOSTS = [
+const CORE = [
   { id: 'fe', label: 'Iron', unit: '% more iron', def: 19, color: '#8e3129',
-    hint: 'Replica / Azahar: +19% (27.1 → 32.2 mg/kg)' },
+    hint: 'Replica / Azahar: +19% (27.1 → 32.2 mg/kg)',
+    flag: { kind: 'gt', text: 'Guatemala: modeled (anemia 6.1%). Ethiopia: 18–30% of preschool children iron-deficient.' } },
   { id: 'zn', label: 'Zinc', unit: '% more zinc', def: 38, color: '#2f5f8f',
-    hint: 'Replica / Azahar: +38% (22.1 → 30.5 mg/kg)' },
+    hint: 'Replica / Azahar: +38% (22.1 → 30.5 mg/kg)',
+    flag: { kind: 'gt', text: 'Guatemala: modeled. Ethiopia: 35% of preschool children zinc-deficient (Kenya 83%, unverified).' } },
   { id: 'prot', label: 'Protein quality (QPM)', unit: '% more utilizable protein', def: 94, color: '#c9963b',
     hint: 'Replica / Azahar: +94% (QPM; lysine ×1.98, tryptophan ×1.43)' },
   { id: 'va', label: 'Provitamin A', unit: '% of 15 µg/g target', def: 0, color: '#d97a1e', extra: true,
-    hint: 'New nutrient. 0% = white maize; 100% = HarvestPlus target, 15 µg β-carotene eq./g' },
+    hint: 'New nutrient. 0% = white maize; 100% = HarvestPlus target, 15 µg β-carotene eq./g',
+    flag: { kind: 'gt', text: 'Guatemala: ~2% inadequate (fortified sugar), small gain. Zambia: 54% deficient, where supplements cut child deaths 12% (RR 0.88).' } },
   { id: 'fol', label: 'Folate', unit: '% more folate', def: 0, color: '#4f8a5b', extra: true, women: true,
     hint: 'New nutrient. White maize 0.25 µg/g; +100% = double (transgenic lines reach 2–4×). Acts through mothers: neural tube defects' }
 ];
+for (const c of CORE) c.group = 'core';
+export const BOOSTS = [...CORE, ...CATALOG.map(x => ({ ...x, def: 0, extra: true }))];
+export const GROUPS = [
+  { id: 'core', label: 'Modeled nutrients' },
+  { id: 'gt', label: 'More nutrients: Guatemala shortfall', note: 'Exploratory. Inadequacy modeled from survey prevalence; see each flag.' },
+  { id: 'elsewhere', label: 'More nutrients: shortfall elsewhere', note: 'Little or no shortfall in Guatemala, so little or no modeled effect here. Flags give the effect where it is common.' },
+  { id: 'nomaize', label: 'More nutrients: no known route into maize', note: 'Hypothetical: no breeding, transgenic or fertilizer route found. Flags say what it would buy if one existed.' }
+];
 // sliders that change the engine's child-level results (folate acts only in health.js)
-export const ENGINE_BOOSTS = ['fe', 'zn', 'prot', 'va'];
+export const ENGINE_BOOSTS = ['fe', 'zn', 'prot', 'va', ...CATALOG.filter(x => x.model && x.model.p0 > 0).map(x => x.id)];
 export const BOOST_DEFAULTS = Object.freeze(Object.fromEntries(BOOSTS.map(b => [b.id, b.def])));
 
 export function cleanBoosts(b) {
@@ -55,19 +67,26 @@ export function boostParams(b) {
     p.gunaratna_effect_size = GUNARATNA_EFFECT * b.prot / AZAHAR_QPM_BOOST;
   }
   if (b.va) p.va_fraction = b.va / 100;
+  const ex = {};
+  for (const x of CATALOG) if (b[x.id] && x.model && x.model.p0 > 0) {
+    ex[x.id] = { add_per_g: x.model.per_g * b[x.id] / 100, p0: x.model.p0, ear: x.model.ear, sd_log: x.model.sd_log || 0.5 };
+  }
+  if (Object.keys(ex).length) p.extra_nutrients = ex;
   return p;
 }
 
 export function boostCaption(b) {
   b = cleanBoosts(b);
-  return `Fe +${b.fe}% · Zn +${b.zn}% · protein quality +${b.prot}%` + (b.va ? ` · provitamin A ${b.va}% of target` : '') + (b.fol ? ` · folate +${b.fol}%` : '');
+  const more = CATALOG.filter(x => b[x.id]).map(x => `${x.short || x.label} ${b[x.id]}%`);
+  return `Fe +${b.fe}% · Zn +${b.zn}% · protein quality +${b.prot}%` + (b.va ? ` · provitamin A ${b.va}% of target` : '') + (b.fol ? ` · folate +${b.fol}%` : '') + (more.length ? ' · ' + more.join(' · ') : '');
 }
 
 // Presets offered under the sliders
+const fill = v => Object.fromEntries(BOOSTS.map(x => [x.id, v]));
 export const PRESETS = [
-  { id: 'replica', label: 'Replica (Azahar)', b: { fe: 19, zn: 38, prot: 94, va: 0, fol: 0 } },
-  { id: 'none', label: 'Conventional maize', b: { fe: 0, zn: 0, prot: 0, va: 0, fol: 0 } },
-  { id: 'stack', label: 'Replica + provitamin A + folate', b: { fe: 19, zn: 38, prot: 94, va: 100, fol: 100 } },
-  { id: 'max', label: 'Everything +100%', b: { fe: 100, zn: 100, prot: 100, va: 100, fol: 100 } }
+  { id: 'replica', label: 'Replica (Azahar)', b: { ...fill(0), fe: 19, zn: 38, prot: 94 } },
+  { id: 'none', label: 'Conventional maize', b: fill(0) },
+  { id: 'stack', label: 'Replica + provitamin A + folate', b: { ...fill(0), fe: 19, zn: 38, prot: 94, va: 100, fol: 100 } },
+  { id: 'max', label: 'Everything +100%', b: fill(100) }
 ];
 

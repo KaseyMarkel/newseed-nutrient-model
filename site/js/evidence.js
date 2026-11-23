@@ -1,6 +1,7 @@
 // Evidence synthesis shown on the Nutrient Boosts page (literature review, 2026-11-23).
 // Effect sizes are what trials of each nutrient found. The model itself only uses the
 // mechanisms in "In this model"; the rest is context for judging the sliders.
+import { CATALOG } from './nutrient_catalog.js';
 const a = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
 
 export const EVIDENCE_NOTE = 'What each nutrient buys, according to trials and meta-analyses. Supplement trials give far larger doses than biofortified maize, so treat them as an upper bound on direction, not on size.';
@@ -58,3 +59,9 @@ export const EVIDENCE = [
       ['Low phytate', `Not a nutrient but an absorption lever; a Guatemalan trial found no gain in zinc absorption (${a('https://doi.org/10.1093/ajcn/83.1.59', 'AJCN 2006')}).`]
     ] }
 ];
+
+// One block summarizing the exploratory sliders (generated from the catalog)
+EVIDENCE.push({ nutrient: 'Exploratory sliders (to prune)', color: '#7a4f9e', confidence: 'low', confidenceLabel: 'mostly flags',
+  items: CATALOG.map(x => [x.label, `${x.flag.text} <span class="muted">Sources: ${x.src}.</span>`]) });
+EVIDENCE.push({ nutrient: 'Stunting in DALYs (opt-in)', color: '#2e7d4f', confidence: 'low', confidenceLabel: 'low confidence',
+  items: [['Method', `Children who are not stunted die less: pooled cohorts give mortality HR 2.28 for HAZ −3 to −2 and 1.46 for −2 to −1 (${a('https://doi.org/10.1371/journal.pone.0064636', 'Olofin 2013')}). With ~3,900 post-neonatal under-5 deaths a year that is ~0.0008 deaths per stunting case averted per year, × 71 years of life lost. The HRs are adjusted only for age and sex, so this likely overstates the effect.`]] });

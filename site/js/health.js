@@ -1,12 +1,14 @@
 // Health outcomes beyond stunting (extension). Pure functions of an engine result
 // (national + department rows, whose *_change_pp are vs no biofortified maize) and the boosts.
 // Annual, steady-state figures. Sources in evidence.js; parameters below are editable on the page.
+import { CATALOG } from './nutrient_catalog.js';
 
 export const HEALTH_DEFAULTS = Object.freeze({
   anemia_baseline: 'sivesnu',  // 'sivesnu' 6.1% (venous, 2018/19) | 'ensmi' 32.4% (capillary, 2014/15)
   zinc_food_discount: 0.5,     // share of the supplement-trial effect a dietary gain keeps (0-1)
   serum_folate0: 10,           // women's baseline serum folate, ng/mL (assumed; Guatemala value not found)
-  mortality: false             // include the low-confidence death pathways (zinc, vitamin A)
+  mortality: false,            // include the low-confidence death pathways (zinc, vitamin A)
+  stunting_dalys: false        // count stunting itself through its link to child deaths (low confidence)
 });
 
 export const H = Object.freeze({
@@ -22,6 +24,9 @@ export const H = Object.freeze({
   zinc_mort_diar: 0.87, zinc_mort_pneu: 0.85, // LiST (Yakoob 2011)
   va_rr_mortality: 0.88,         // Imdad 2022
   yll_per_child_death: 71,       // life expectancy 72.6 minus ~1.6 y mean age at death, undiscounted
+  // Stunting -> deaths (opt-in, low confidence): Olofin 2013 pooled HRs 2.28 (HAZ -3 to -2) vs 1.46 (-2 to -1);
+  // reference mortality m0 = post-neonatal U5 deaths / (children x mean RR 2.27) ~ 0.0010/yr (neonatal share ~50%, unverified)
+  stunting: { deaths_per_case_averted: 0.0008, how: '0.0008 deaths per child-year (HR 2.28 vs 1.46, Olofin 2013, × reference mortality 0.0010/yr; HRs barely adjusted, so likely high)' },
   // folate / neural tube defects
   births: 342694, ntd_per_10k: 14, dalys_per_ntd: 55,
   women_maize_g: 344, folate_ug_g: 0.25, folate_retention: 0.9,
@@ -30,6 +35,7 @@ export const H = Object.freeze({
 });
 
 const USD = 7.8; // GTQ per USD (replica)
+const fmt = v => Math.round(v).toLocaleString('en-US');
 
 // res: engine result; boosts: cleaned boosts; p: HEALTH params
 export function healthOutcomes(res, boosts, p = HEALTH_DEFAULTS) {
@@ -68,7 +74,24 @@ export function healthOutcomes(res, boosts, p = HEALTH_DEFAULTS) {
     { id: 'deaths_va', nutrient: 'va', outcome: 'Child deaths (vitamin A)', value: deathsVA, dalys: deathsVA * H.yll_per_child_death, conf: 'low', how: `7,745 under-5 deaths × 12% (RR 0.88) × ${(vaFix * 100).toFixed(2)}% of children moved above the vitamin A requirement` }
   ];
   for (const r of spec) { r.speculative = true; r.included = !!p.mortality; rows.push(r); }
+  // Exploratory catalog nutrients modeled for Guatemala: children moved above the EAR x DALYs per child-year
+  for (const x of CATALOG) {
+    if (!x.model || !x.daly || !(boosts[x.id] > 0)) continue;
+    const moved = kids * (n[`x_${x.id}_inad_change_pp`] || 0) / 100;
+    rows.push({ id: 'x_' + x.id, nutrient: x.id, outcome: x.daly.outcome, value: moved * (x.daly.cases_per_child || 1), dalys: moved * x.daly.per_child,
+      conf: x.daly.conf || 'low', exploratory: true, speculative: x.daly.conf === 'low', included: x.daly.conf === 'low' ? !!p.mortality : true,
+      how: `${fmt(moved)} children moved above the ${x.label.toLowerCase()} requirement × ${x.daly.how}` });
+  }
+  // Stunting -> child deaths (opt-in)
+  if (H.stunting && n.n_stunting_averted > 0) {
+    const S = H.stunting;
+    const deaths = n.n_stunting_averted * S.deaths_per_case_averted;
+    rows.push({ id: 'stunting', nutrient: 'stunt', outcome: 'Child deaths (via stunting)', value: deaths, dalys: deaths * H.yll_per_child_death,
+      conf: 'low', speculative: true, included: !!p.stunting_dalys, how: `${fmt(n.n_stunting_averted)} stunting cases averted × ${S.how}` });
+  }
   const dalys = rows.filter(r => !r.speculative || r.included).reduce((s, r) => s + r.dalys, 0);
   const costUSD = (n.newseed_subsidy_total || 0) / USD;
-  return { rows, dalys, costUSD, perDaly: dalys > 0 && costUSD > 0 ? costUSD / dalys : null };
+  const byNutrient = {};
+  for (const r of rows) if (!r.speculative || r.included) byNutrient[r.nutrient] = (byNutrient[r.nutrient] || 0) + r.dalys;
+  return { rows, dalys, byNutrient, costUSD, perDaly: dalys > 0 && costUSD > 0 ? costUSD / dalys : null };
 }

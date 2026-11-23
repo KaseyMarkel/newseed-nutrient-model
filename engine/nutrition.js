@@ -195,6 +195,37 @@ function phi(x) {
   const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x / 2);
   return x >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
 }
+// Generic extra nutrients (extension). spec: { id, add_per_g (amount per g dry grain eaten, after
+// retention/bioavailability), ear: [<48 mo, >=48 mo], p0 (baseline inadequacy, 0-1), sd_log }.
+// Usual non-maize-boost intake ~ lognormal with median = EAR x exp(-sd x z(p0)), so with no addition
+// the share below the EAR equals p0; a flagged child adds maize_g x add_per_g.
+function probit(p) { // inverse normal CDF (Acklam), |rel err| < 1.2e-9
+  if (p <= 0) return -Infinity; if (p >= 1) return Infinity;
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+  const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+  const c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+  const d = [0.00778469570904146, 0.32246712907004, 2.445134137143, 3.75440866190742];
+  const pl = 0.02425; let q, r;
+  if (p < pl) { q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  if (p > 1 - pl) { q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  q = p - 0.5; r = q * q;
+  return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+export function prepareExtras(list) {
+  if (!list || typeof list !== 'object') return [];
+  return Object.entries(list).map(([id, x]) => {
+    const sd = x.sd_log > 0 ? x.sd_log : 0.5;
+    const p0 = Math.min(0.999, Math.max(1e-6, x.p0));
+    const z = probit(p0);
+    return { id, add: Math.max(0, x.add_per_g || 0), ear: x.ear, sd, lnMed: x.ear.map(e => Math.log(e) - sd * z) };
+  });
+}
+function extraP(x, age, maize_g, flagged) {
+  const k = age < 48 ? 0 : 1;
+  const gap = x.ear[k] - (flagged ? maize_g * x.add : 0);
+  return gap <= 0 ? 0 : phi((Math.log(gap) - x.lnMed[k]) / x.sd);
+}
+
 // per child: usual vitamin A intake (mean) and probability of inadequacy
 function vaChild(age, ekm, ekt, gramsPerKcal, frac, V) {
   if (Number.isNaN(age) || Number.isNaN(ekm) || Number.isNaN(ekt)) return [NaN, NaN];
@@ -408,8 +439,9 @@ function deptQuantiles(S, d, flagCount, K) {
 }
 
 // One pass: flag prefix per department, aggregate by department and nationally
-function aggregate(S, nd, flagCounts, K, includeQuantiles, vaFrac = 0) {
+function aggregate(S, nd, flagCounts, K, includeQuantiles, vaFrac = 0, extras = []) {
   const V = K.va, gpk = 1 / K.maize_kcal_per_g;
+  const ex = extras.map(x => ({ x, g: Array.from({ length: nd }, () => ({ b: new Mean(), s: new Mean() })), nat: { b: new Mean(), s: new Mean() } }));
   const { cols: c, start, end } = S;
   const groups = Array.from({ length: nd }, newGroup);
   const nat = newGroup();
@@ -427,15 +459,30 @@ function aggregate(S, nd, flagCounts, K, includeQuantiles, vaFrac = 0) {
         vaChild(c.age[i], c.ekm[i], c.ekt[i], gpk, q ? vaFrac : 0, V)];
       addChild(groups[d], ...args);
       addChild(nat, ...args);
+      if (ex.length && !Number.isNaN(c.age[i])) {
+        const mg = c.ekm[i] * gpk;
+        for (const e of ex) {
+          const pb = extraP(e.x, c.age[i], mg, false), ps = q ? extraP(e.x, c.age[i], mg, true) : pb;
+          e.g[d].b.add(pb, c.w[i]); e.g[d].s.add(ps, c.w[i]); e.nat.b.add(pb, c.w[i]); e.nat.s.add(ps, c.w[i]);
+        }
+      }
     }
   }
   const depts = groups.map((g, d) => {
     if (start[d] < 0) return null;
     const row = finishGroup(g);
     if (includeQuantiles) Object.assign(row, deptQuantiles(S, d, flagCounts[d], K));
+    for (const e of ex) extraKeys(row, e.x.id, e.g[d]);
     return row;
   });
-  return { depts, national: finishGroup(nat) };
+  const national = finishGroup(nat);
+  for (const e of ex) extraKeys(national, e.x.id, e.nat);
+  return { depts, national };
+}
+
+function extraKeys(row, id, m) {
+  const b = m.b.value() * 100, s = m.s.value() * 100;
+  row[`x_${id}_inad_pct_baseline`] = b; row[`x_${id}_inad_pct`] = s; row[`x_${id}_inad_change_pp`] = b - s;
 }
 
 // Number of flagged children in a department: count of wcum <= target
@@ -632,7 +679,8 @@ export function createNutrition(bundleIn) {
     }
     // 2. aggregate
     const base = baselineAgg(pathway);
-    const agg = penetration === 0 ? base : aggregate(SF, nd, flagCounts, K, includeQuantiles, F.va);
+    const extras = prepareExtras(opts.extras);
+    const agg = penetration === 0 && !extras.length ? base : aggregate(SF, nd, flagCounts, K, includeQuantiles, F.va, extras);
     // 3. departments
     const departments = [];
     for (let d = 0; d < nd; d++) {
