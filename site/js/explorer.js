@@ -72,6 +72,10 @@ function rebuildSidebar() {
   if (sidebarEl.firstChild) {
     sidebarEl.querySelectorAll('details.acc').forEach(d => { const t = d.querySelector('summary span')?.textContent; if (!t) return; if (d.open) openAcc.add(t); else openAcc.delete(t); });
   }
+  // keep the sidebar's scroll position and opened nutrient groups across rebuilds
+  const oldInner = sidebarEl.querySelector('.sidebar-inner');
+  const keepScroll = oldInner ? oldInner.scrollTop : 0;
+  const openGroups = new Set([...sidebarEl.querySelectorAll('details.boost-group[open] > summary')].map(x => x.firstChild && x.firstChild.textContent));
   const def = PAGES[page];
   const extra = [];
   if (page === 'overview') {
@@ -110,6 +114,8 @@ function rebuildSidebar() {
   });
   sidebarEl.replaceChildren(sb);
   sb.querySelectorAll('details.acc').forEach(d => { const t = d.querySelector('summary span')?.textContent; if (t) d.open = openAcc.has(t); });
+  sb.querySelectorAll('details.boost-group > summary').forEach(x => { if (openGroups.has(x.firstChild && x.firstChild.textContent)) x.parentElement.open = true; });
+  sb.scrollTop = keepScroll;
 }
 
 // ---------------------------------------------------------------- content
