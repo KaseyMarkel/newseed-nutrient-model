@@ -22,8 +22,12 @@ export const BOOSTS = [
   { id: 'prot', label: 'Protein quality (QPM)', unit: '% more utilizable protein', def: 94, color: '#c9963b',
     hint: 'Replica / Azahar: +94% (QPM; lysine ×1.98, tryptophan ×1.43)' },
   { id: 'va', label: 'Provitamin A', unit: '% of 15 µg/g target', def: 0, color: '#d97a1e', extra: true,
-    hint: 'New nutrient. 0% = white maize; 100% = HarvestPlus target, 15 µg β-carotene eq./g' }
+    hint: 'New nutrient. 0% = white maize; 100% = HarvestPlus target, 15 µg β-carotene eq./g' },
+  { id: 'fol', label: 'Folate', unit: '% more folate', def: 0, color: '#4f8a5b', extra: true, women: true,
+    hint: 'New nutrient. White maize 0.25 µg/g; +100% = double (transgenic lines reach 2–4×). Acts through mothers: neural tube defects' }
 ];
+// sliders that change the engine's child-level results (folate acts only in health.js)
+export const ENGINE_BOOSTS = ['fe', 'zn', 'prot', 'va'];
 export const BOOST_DEFAULTS = Object.freeze(Object.fromEntries(BOOSTS.map(b => [b.id, b.def])));
 
 export function cleanBoosts(b) {
@@ -56,14 +60,14 @@ export function boostParams(b) {
 
 export function boostCaption(b) {
   b = cleanBoosts(b);
-  return `Fe +${b.fe}% · Zn +${b.zn}% · protein quality +${b.prot}%` + (b.va ? ` · provitamin A ${b.va}% of target` : '');
+  return `Fe +${b.fe}% · Zn +${b.zn}% · protein quality +${b.prot}%` + (b.va ? ` · provitamin A ${b.va}% of target` : '') + (b.fol ? ` · folate +${b.fol}%` : '');
 }
 
 // Presets offered under the sliders
 export const PRESETS = [
-  { id: 'replica', label: 'Replica (Azahar)', b: { fe: 19, zn: 38, prot: 94, va: 0 } },
-  { id: 'none', label: 'Conventional maize', b: { fe: 0, zn: 0, prot: 0, va: 0 } },
-  { id: 'stack', label: 'Replica + provitamin A', b: { fe: 19, zn: 38, prot: 94, va: 100 } },
-  { id: 'max', label: 'Everything +100%', b: { fe: 100, zn: 100, prot: 100, va: 100 } }
+  { id: 'replica', label: 'Replica (Azahar)', b: { fe: 19, zn: 38, prot: 94, va: 0, fol: 0 } },
+  { id: 'none', label: 'Conventional maize', b: { fe: 0, zn: 0, prot: 0, va: 0, fol: 0 } },
+  { id: 'stack', label: 'Replica + provitamin A + folate', b: { fe: 19, zn: 38, prot: 94, va: 100, fol: 100 } },
+  { id: 'max', label: 'Everything +100%', b: { fe: 100, zn: 100, prot: 100, va: 100, fol: 100 } }
 ];
 

@@ -225,6 +225,7 @@ async function renderNutrientsPage() {
   if (!ok) return;
   showNotes(ok);
   await renderNutrients(skeleton, { runner, spec, boosts: boostsOf(st), pathwayLabel: pathwayObj(st.pathway).label,
+    health: st.health, onHealth: hp => setState({ health: hp }),
     stale: () => token !== nutToken || page !== 'nutrients' });
 }
 

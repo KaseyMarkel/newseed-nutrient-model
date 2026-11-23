@@ -15,6 +15,7 @@ all-zero boosts give zero effect), `node tools/va_age.mjs`.
 | Zinc | factor_zn = 1 + b/100 | +38% |
 | Protein quality | factor_prot = 1 + b/100; lystrp_scale = b/94; gunaratna_effect_size = 0.09·b/94 | +94% |
 | Provitamin A (new) | va_fraction = b/100 of 15 µg/g β-carotene | 0% |
+| Folate (new) | not an engine param; health.js only (women → neural tube defects) | 0% |
 
 - Covariate pathway: the lysine+tryptophan share of each child's nutrition-index change is
   backed out of Azahar's exported index (it is exactly proportional to maize protein,
@@ -23,6 +24,15 @@ all-zero boosts give zero effect), `node tools/va_age.mjs`.
   added to non-maize intake (median 850 µg RAE/d × (non-maize kcal/418)^0.25, CV 0.6;
   calibrated to Mayan children 2-5 y: 1-3% below EAR). Inadequacy = P(intake < IOM EAR
   210/275). Not linked to stunting. Sources in site/js/evidence.js.
+
+## Health outcomes beyond stunting (site/js/health.js)
+Annual, from the engine's inadequacy changes: child anemia (iron; SIVESNU 6.1% × 26.9% iron-attributable),
+diarrhea (zinc; RR 0.91 on children moved above the zinc requirement × 0.5 food discount), neural tube
+defects (folate; Wald 2001 serum-folate model, births by department × biofortified share). Pneumonia and
+child deaths (zinc, vitamin A) are shown but excluded from the DALY total unless toggled. No cost per DALY:
+the subsidy also buys yield, income and stunting gains. Test: `node tools/test_health.mjs`.
+Nutrients screened and not added (calcium, niacin, riboflavin, B6, vitamin E, selenium, iodine, B12,
+lutein, low phytate): see site/js/evidence.js.
 
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):

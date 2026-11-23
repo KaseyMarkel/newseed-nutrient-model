@@ -286,7 +286,7 @@ export function boostAccordion(open = true) {
   }));
   const note = h('div', { class: 'note info' }, isDefaultBoost(b)
     ? 'At the replica values every number equals the replica’s. Tick marks show those values.'
-    : 'Boosts differ from the replica. Iron, zinc and protein change the existing KPIs; provitamin A has its own KPIs on the Nutrient Boosts page.');
+    : 'Boosts differ from the replica. Iron, zinc and protein change the existing KPIs; provitamin A and folate show on the Nutrient Boosts page.');
   return accordion('Nutrient content boost', 'slider', [...rows, presets, note], open);
 }
 

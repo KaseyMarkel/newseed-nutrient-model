@@ -2,6 +2,7 @@
 // Explorer, Compare and Lab pages agree on penetration, seed, subsidy, pathway and units.
 import { DEFAULT_UNITS } from './units.js';
 import { BOOST_DEFAULTS, cleanBoosts } from './boosts.js';
+import { HEALTH_DEFAULTS } from './health.js';
 
 const KEY = 'nsb.state.v1'; // own key: the boost site never shares state with the replica
 
@@ -21,6 +22,7 @@ const DEFAULTS = {
   compareScenario: null, // id of a saved scenario, or null
   comparePenetration: 50,
   boosts: { ...BOOST_DEFAULTS },
+  health: { ...HEALTH_DEFAULTS },
   v: 2
 };
 
@@ -41,6 +43,11 @@ function load() {
       const pen = v => Number.isFinite(+v) ? Math.min(100, Math.max(0, Math.round(+v / 10) * 10)) : 50;
       out.penetration = pen(out.penetration); out.comparePenetration = pen(out.comparePenetration);
       out.boosts = cleanBoosts(out.boosts);
+      { const hh = { ...HEALTH_DEFAULTS, ...(out.health && typeof out.health === 'object' ? out.health : {}) };
+        if (!['sivesnu', 'ensmi'].includes(hh.anemia_baseline)) hh.anemia_baseline = HEALTH_DEFAULTS.anemia_baseline;
+        hh.zinc_food_discount = Number.isFinite(+hh.zinc_food_discount) ? Math.min(1, Math.max(0, +hh.zinc_food_discount)) : HEALTH_DEFAULTS.zinc_food_discount;
+        hh.serum_folate0 = Number.isFinite(+hh.serum_folate0) ? Math.min(40, Math.max(2, +hh.serum_folate0)) : HEALTH_DEFAULTS.serum_folate0;
+        hh.mortality = !!hh.mortality; out.health = hh; }
       if (!['USD', 'GTQ'].includes(out.units.currency)) out.units.currency = 'USD';
       if (!['ha', 'mz'].includes(out.units.area)) out.units.area = 'ha';
       if (!['mt', 'qq'].includes(out.units.weight)) out.units.weight = 'mt';
