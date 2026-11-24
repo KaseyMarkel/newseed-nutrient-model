@@ -1,6 +1,7 @@
 // Global nutrient model page: New Seed's gene-editing mainstreaming BOTEC (v1.4) in the browser,
 // with every input as a control, plus extra nutrients (global_nutrients.js).
-import { run, defaults, YEARS, CROPS } from './global_engine.js';
+import { run, defaults, CROPS } from './global_engine.js';
+import { REDTEAM } from './global_redteam.js';
 import { GLOBAL_EXTRAS, ZINC_ANCHORS } from './global_nutrients.js';
 import { h, renderHeader, renderFooter, card, accordion, setupDrawer, controlsButton } from './ui.js';
 import { fmtNum, fmtCompact } from './units.js';
@@ -20,6 +21,7 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catc
 // ---- parameters: scenario preset + overrides (dot paths) ----
 function params() {
   const P = defaults(D, st.s);
+  if (st.rt) for (const l of REDTEAM.levers) l.apply(P, D);
   for (const [path, v] of Object.entries(st.ov || {})) {
     const ks = path.split('.'); let o = P;
     for (let i = 0; i < ks.length - 1; i++) { if (o[ks[i]] == null) o[ks[i]] = {}; o = o[ks[i]]; }
@@ -28,13 +30,13 @@ function params() {
   P.extras = {};
   for (const x of GLOBAL_EXTRAS) {
     const b = (st.extras || {})[x.id] || 0;
-    if (b > 0) P.extras[x.id] = { boost: b / 100, gap: x.gap, daly: x.daly, prevKey: x.prevKey, group: x.group, ret: x.ret, wshare: x.wshare };
+    if (b > 0) P.extras[x.id] = { boost: b / 100, gap: x.gap, daly: x.daly, prevKey: x.prevKey, group: x.group, ret: x.ret, wshare: x.wshare, routeCrops: x.routeCrops, fort: x.fort };
   }
   return P;
 }
 const get = (P, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), P);
 function setOv(path, v) { st.ov = { ...(st.ov || {}), [path]: v }; save(); refresh(); }
-const isPristine = () => !Object.keys(st.ov || {}).length && !Object.values(st.extras || {}).some(v => v > 0);
+const isPristine = () => !st.rt && !Object.keys(st.ov || {}).length && !Object.values(st.extras || {}).some(v => v > 0);
 
 // ---- sidebar ----
 function slider(P, label, path, min, max, step, fmt, hint) {
@@ -73,14 +75,38 @@ function zincAnchor(P) {
   return sel;
 }
 
+function redteamControls(P) {
+  const qOn = h('input', { type: 'checkbox', id: 'g-qpmon', checked: P.qpm_ref ? true : null });
+  qOn.addEventListener('change', () => setOv('qpm_ref', qOn.checked ? 0.8 : null));
+  const adv = h('input', { type: 'checkbox', id: 'g-adv', checked: P.advocacy !== false ? true : null });
+  adv.addEventListener('change', () => setOv('advocacy', adv.checked));
+  const yrs = v => (+v === 0 ? '0 y' : '+' + v + ' y');
+  return [
+    h('div', { class: 'boost-gnote' }, 'Defaults reproduce the sheet. The “Red-team central” preset sets the reviewers’ central values.'),
+    h('div', { class: 'lbl' }, 'Probability the edits work'),
+    ...CROPS.map((c, i) => slider(P, c[0].toUpperCase() + c.slice(1), 'p_success.' + i, 0, 1, 0.05, pct, i === 0 ? '1 = results conditional on success. Note: 2–20% of genes expected usable.' : null)),
+    h('label', { class: 'switch' }, qOn, h('span', {}, 'Scale stunting by edit size (sheet applies the full QPM effect)')),
+    P.qpm_ref ? slider(P, 'Lysine gain of the reference QPM', 'qpm_ref', 0.3, 1.5, 0.05, pct, 'Effect = growth × min(1, protein boost × lab→field ÷ this). QPM roughly doubles lysine.') : null,
+    slider(P, 'QPM evidence transfer: rice', 'qpm_transfer.1', 0, 1, 0.05, pct, 'Rice protein is far less lysine-limited than maize'),
+    slider(P, 'QPM evidence transfer: wheat', 'qpm_transfer.2', 0, 1, 0.05, pct, 'Wheat is lysine-limited like maize'),
+    h('div', { class: 'lbl' }, 'Seed lag after approval'),
+    ...CROPS.map((c, i) => slider(P, c[0].toUpperCase() + c.slice(1), 'crop_lag.' + i, 0, 10, 1, yrs, null)),
+    slider(P, 'Last year counted', 'horizon', 2040, 2080, 1, v => String(v), 'Sheet: 2050. Later years keep the secular decline; costs continue at the 2050 rate.'),
+    h('label', { class: 'switch' }, adv, h('span', {}, 'Include $1M/yr advocacy in costs (it moves no approval year in the model)'))
+  ].filter(Boolean);
+}
+
 function buildSidebar() {
   const P = params();
   const sc = h('div', { class: 'boost-presets' }, ['Pessimistic', 'Median', 'Optimistic'].map((n, s) =>
-    h('button', { class: 'btn small' + (st.s === s && isPristine() ? ' on' : ''), onClick: () => { st = { ...st, s, ov: {}, extras: {} }; save(); refresh(); } }, n)));
+    h('button', { class: 'btn small' + (st.s === s && isPristine() ? ' on' : ''), onClick: () => { st = { ...st, s, rt: false, ov: {}, extras: {} }; save(); refresh(); } }, n)),
+    h('button', { class: 'btn small rt' + (st.rt && !Object.keys(st.ov || {}).length ? ' on' : ''), title: 'Sheet Median plus the red-team central adjustments (see “Red-team review”)',
+      onClick: () => { st = { ...st, s: 1, rt: true, ov: {}, extras: {} }; save(); refresh(); } }, 'Red-team central'));
+  const nCh = Object.keys(st.ov || {}).length + Object.values(st.extras || {}).filter(v => v > 0).length;
   const status = isPristine()
     ? h('div', { class: 'note info' }, `Sheet preset “${P.scenario}”. ${st.s === 1 ? 'Numbers match the v1.4 sheet exactly.' : ''}`)
-    : h('div', { class: 'note' }, h('b', {}, 'Custom: '), `${Object.keys(st.ov || {}).length} input(s) changed from “${P.scenario}”. `,
-      h('button', { class: 'btn small', onClick: () => { st.ov = {}; st.extras = {}; save(); refresh(); } }, 'Reset'));
+    : h('div', { class: 'note' }, h('b', {}, st.rt ? 'Red-team central' : 'Custom'), nCh ? `: ${nCh} change(s) on top of “${P.scenario}”${st.rt ? ' + red-team' : ''}. ` : ': sheet Median plus the red-team adjustments. ',
+      h('button', { class: 'btn small', onClick: () => { st.ov = {}; st.extras = {}; st.rt = false; save(); refresh(); } }, 'Reset'));
   const crops = h('div', { class: 'boost-presets' }, CROPS.map((c, i) => {
     const on = P.crops[i];
     return h('button', { class: 'btn small' + (on ? ' on' : ''), onClick: () => { const cr = P.crops.slice(); cr[i] = !on; setOv('crops', cr); } }, c[0].toUpperCase() + c.slice(1));
@@ -103,6 +129,7 @@ function buildSidebar() {
       slider(P, 'Fiber added (wheat)', 'fib_delta', 0, 5, 0.1, v => (+v).toFixed(1) + ' g/d', 'Ingested arabinoxylan fiber per wheat eater; sheet 1 / 2 / 3 g/day'),
       slider(P, 'Phytate cut (edit knockouts)', 'phytate', 0, 1, 0.05, pct, 'Not in the sheet. Share of the maximum cut (lpa-type, −60–80% phytate): raises absorbed zinc up to +25% and iron +15% (shrunk: adult gains were far larger, a Guatemalan child trial found none). The concept note names phytate knockouts as an edit target.')], true),
     extras,
+    accordion('Red-team levers', 'info', redteamControls(P), !!st.rt),
     accordion('From boost to health', 'method', [
       slider(P, 'Zinc gap closed per unit boost', 'gap_zn', 0, 1, 0.05, num(2), 'Sheet: 0.5'),
       slider(P, 'Iron gap closed per unit boost', 'gap_fe', 0, 1, 0.05, num(2), 'Sheet: 0.25 (phytate, food matrix)'),
@@ -154,13 +181,15 @@ function buildContent() {
   ui.yearlyMode = h('div', { class: 'boost-presets' });
   const top = card('If CGIAR puts nutrition edits into every new maize, rice and wheat variety', 'info', [ui.intro, h('div', { class: 'card-body' }, ui.tiles)]);
   const cY = card('DALYs averted per year', 'chart', [h('div', { class: 'card-body' }, ui.yearlyMode), h('div', { class: 'card-body', style: { padding: '6px' } }, ui.yearly)], { foot: 'Credited to New Seed (attribution applied), undiscounted.' });
-  const cN = card('DALYs 2030–2050 by nutrient pathway', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.nut));
-  const cM = card('Where the DALYs are (2030–2050)', 'map', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.map), { foot: '75 modeled countries; grey = not modeled.' });
+  const cN = card('DALYs by nutrient pathway', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.nut));
+  const cM = card('Where the DALYs are', 'map', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.map), { foot: '75 modeled countries; grey = not modeled.' });
   const cR = card('People eating gene-edited biofortified grain', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.reach), { foot: 'Calorie-weighted eaters of CG-derived edited varieties, net of the 15% already biofortified (sheet People Reached, block 1).' });
   const cT = card('Countries', 'table', ui.table);
   const cC = card('Scenarios side by side', 'list', ui.compare);
+  ui.redteam = h('div', { class: 'card-body' });
+  const cRT = card('Red-team review (three independent reviewers, 2026-11-23)', 'info', ui.redteam);
   const cMeth = card('How the model works', 'method', h('div', { class: 'card-body prose' }, methods()));
-  ui.content.replaceChildren(ui.title, top, h('div', { class: 'two-col' }, cY, cN), h('div', { class: 'two-col' }, cM, cR), cT, h('div', { class: 'two-col' }, cC, cMeth));
+  ui.content.replaceChildren(ui.title, top, h('div', { class: 'two-col' }, cY, cN), h('div', { class: 'two-col' }, cM, cR), cRT, cT, h('div', { class: 'two-col' }, cC, cMeth));
 }
 
 function methods() {
@@ -185,12 +214,12 @@ function render() {
   const T = out.totals;
   ui.title.querySelector('.sub').textContent = `${P.scenario}${isPristine() ? '' : ' (custom)'} · ${P.crops.map((on, i) => on ? CROPS[i] : null).filter(Boolean).join(', ')}`;
   const r2050 = out.reached[out.reached.length - 1].people;
-  ui.intro.replaceChildren(h('p', {}, 'DALYs averted 2030–2050 credited to New Seed (30% attribution by default). ',
+  ui.intro.replaceChildren(h('p', {}, `DALYs averted 2030–${P.horizon} credited to New Seed (${Math.round(P.att * 100)}% attribution). `,
     isPristine() && st.s === 1 ? h('span', { class: 'tag ok' }, 'matches the v1.4 sheet exactly') : h('span', { class: 'tag warn' }, `sheet Median: ${fmtNum(SHEET_MEDIAN, 0)}`)));
   ui.tiles.replaceChildren(
-    tile('DALYs averted 2030–2050', fmtCompact(T.total, 2), `maize ${fmtCompact(T.maize)} · rice ${fmtCompact(T.rice)} · wheat ${fmtCompact(T.wheat)}`, 'hl'),
+    tile(`DALYs averted 2030–${P.horizon}` + (P.p_success.every(v => v === 1) ? ' (if the edits work)' : ' (expected value)'), fmtCompact(T.total, 2), `maize ${fmtCompact(T.maize)} · rice ${fmtCompact(T.rice)} · wheat ${fmtCompact(T.wheat)}`, 'hl'),
     tile('Discounted DALYs (2026 value)', fmtCompact(T.disc, 2), `at ${(P.disc * 100).toFixed(1)}%`, 'hl'),
-    tile('People eating edited grain, 2050', fmtCompact(r2050, 1), 'calorie-weighted eaters'),
+    tile(`Full-diet equivalents reached, ${out.years[out.years.length - 1]}`, fmtCompact(r2050, 1), 'people × share of calories from edited grain; if the edits work'),
     tile('Cost per DALY (discounted)', T.per_daly_disc ? '$' + T.per_daly_disc.toFixed(2) : '–', `undiscounted $${T.per_daly ? T.per_daly.toFixed(2) : '–'} · cost $${fmtCompact(T.cost_disc)} PV`),
     tile('Value of health gains (2026 value)', '$' + fmtCompact(T.value_disc, 2), `${P.daly_gdp_mult}× GDP per capita per DALY`),
     tile('Top country', topCountry(), 'share of all DALYs'));
@@ -204,15 +233,15 @@ function render() {
   const lay = (yt) => ({ font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 60, r: 10, t: 30, b: 40 }, height: 320,
     xaxis: { gridcolor: '#eee8e2' }, yaxis: { title: { text: yt }, gridcolor: '#eee8e2', rangemode: 'tozero' }, legend: { orientation: 'h', y: 1.15 }, hovermode: 'x unified' });
   const traces = (st.ymode || 'crop') === 'crop'
-    ? CROPS.map((c, i) => ({ type: 'scatter', mode: 'lines', stackgroup: 'a', name: c, x: YEARS, y: out.rows.map(r => r[c]), line: { color: CROP_COLOR[i], width: 1 }, hovertemplate: '%{y:,.0f}' }))
-    : out.keys.filter(k => out.nutTotals[k] > 0).map(k => ({ type: 'scatter', mode: 'lines', stackgroup: 'a', name: NUT[k][0], x: YEARS, y: out.byNut.map(r => r[k]), line: { color: NUT[k][1], width: 1 }, hovertemplate: '%{y:,.0f}' }));
+    ? CROPS.map((c, i) => ({ type: 'scatter', mode: 'lines', stackgroup: 'a', name: c, x: out.years, y: out.rows.map(r => r[c]), line: { color: CROP_COLOR[i], width: 1 }, hovertemplate: '%{y:,.0f}' }))
+    : out.keys.filter(k => out.nutTotals[k] > 0).map(k => ({ type: 'scatter', mode: 'lines', stackgroup: 'a', name: NUT[k][0], x: out.years, y: out.byNut.map(r => r[k]), line: { color: NUT[k][1], width: 1 }, hovertemplate: '%{y:,.0f}' }));
   Plotly.react(ui.yearly, traces, lay('DALYs averted per year'), CFG);
   // by nutrient
   const nk = out.keys.filter(k => out.nutTotals[k] > 0).sort((a, b) => out.nutTotals[b] - out.nutTotals[a]);
   Plotly.react(ui.nut, [{ type: 'bar', orientation: 'h', y: nk.map(k => NUT[k][0]), x: nk.map(k => out.nutTotals[k]), marker: { color: nk.map(k => NUT[k][1]) },
     text: nk.map(k => `${fmtCompact(out.nutTotals[k])} (${(out.nutTotals[k] / T.total * 100).toFixed(0)}%)`), textposition: 'auto', hovertemplate: '%{y}: %{x:,.0f}<extra></extra>' }],
   { font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 10, r: 20, t: 10, b: 40 }, height: 320,
-    xaxis: { title: { text: 'DALYs 2030–2050' }, gridcolor: '#eee8e2' }, yaxis: { automargin: true, autorange: 'reversed' } }, CFG);
+    xaxis: { title: { text: `DALYs 2030–${P.horizon}` }, gridcolor: '#eee8e2' }, yaxis: { automargin: true, autorange: 'reversed' } }, CFG);
   // map
   Plotly.react(ui.map, [{ type: 'choropleth', locationmode: 'ISO-3', locations: out.country.map(c => c.iso3), z: out.country.map(c => c.total),
     text: out.country.map(c => `<b>${c.name}</b><br>${fmtNum(c.total, 0)} DALYs<br>approval ${c.approval >= 2100 ? 'never' : c.approval}`), hoverinfo: 'text',
@@ -222,9 +251,9 @@ function render() {
     geo: { projection: { type: 'natural earth' }, showframe: false, showcoastlines: false, showland: true, landcolor: '#ebe6e0', bgcolor: 'rgba(0,0,0,0)', lataxis: { range: [-40, 60] } } },
   { ...CFG, topojsonURL: 'vendor/' });
   // reached
-  Plotly.react(ui.reach, [{ type: 'scatter', mode: 'lines', fill: 'tozeroy', x: YEARS, y: out.reached.map(r => r.people), line: { color: '#2f5f8f' }, hovertemplate: '%{y:,.0f}<extra></extra>' }],
+  Plotly.react(ui.reach, [{ type: 'scatter', mode: 'lines', fill: 'tozeroy', x: out.years, y: out.reached.map(r => r.people), line: { color: '#2f5f8f' }, hovertemplate: '%{y:,.0f}<extra></extra>' }],
     { ...lay('People'), showlegend: false }, CFG);
-  renderTable(); renderCompare(P);
+  renderTable(); renderCompare(P); renderRedteam();
 }
 function topCountry() { const c = out.country.slice().sort((a, b) => b.total - a.total)[0]; return c && out.totals.total > 0 ? `${c.name} ${(c.total / out.totals.total * 100).toFixed(0)}%` : '–'; }
 function renderTable() {
@@ -241,6 +270,26 @@ function renderTable() {
     })));
   const all = h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: st.showAll ? true : null, onChange: e => { st.showAll = e.target.checked; save(); renderTable(); } }), h('span', {}, `Show all 75 countries (${out.country.filter(c => c.total === 0).length} have no edited crops before 2051)`));
   ui.table.replaceChildren(all, h('div', { class: 'table-wrap' }, t));
+}
+function renderRedteam() {
+  const dirCls = d => (d.startsWith('worse') ? 'conf-low' : d.startsWith('better') ? 'conf-high' : 'conf-moderate');
+  const t = h('table', { class: 'dt health rt-findings' },
+    h('thead', {}, h('tr', {}, ['Finding', 'Direction', 'Effect on Median', 'Control here'].map(x => h('th', {}, x)))),
+    h('tbody', {}, REDTEAM.findings.map(([f, d, e, c]) => h('tr', {}, h('td', {}, f), h('td', {}, h('span', { class: 'conf ' + dirCls(d) }, d)), h('td', { class: 'num' }, e), h('td', {}, c)))));
+  const mc = h('table', { class: 'dt' }, h('thead', {}, h('tr', {}, ['Monte Carlo (2,000 draws)', 'Discounted DALYs p5 / p50 / p95', '$ per discounted DALY'].map(x => h('th', {}, x)))),
+    h('tbody', {}, REDTEAM.monteCarlo.map(r => h('tr', {}, r.map((x, j) => h('td', { class: j ? 'num' : '' }, x))))));
+  const levers = (() => {
+    const base = run(D, defaults(D, 1)).totals;
+    return h('table', { class: 'dt' }, h('thead', {}, h('tr', {}, ['Red-team lever (alone, on the sheet Median)', 'Discounted DALYs', '× Median', '$/disc. DALY'].map(x => h('th', {}, x)))),
+      h('tbody', {}, ...REDTEAM.levers.map(l => { const P = defaults(D, 1); l.apply(P, D); const t2 = run(D, P).totals;
+        return h('tr', {}, h('td', {}, l.label), h('td', { class: 'num' }, fmtCompact(t2.disc, 2)), h('td', { class: 'num' }, '×' + (t2.disc / base.disc).toFixed(2)), h('td', { class: 'num' }, '$' + t2.per_daly_disc.toFixed(2))); }),
+      (() => { const P = defaults(D, 1); for (const l of REDTEAM.levers) l.apply(P, D); const t2 = run(D, P).totals;
+        return h('tr', { class: 'total' }, h('td', {}, 'All together (Red-team central)'), h('td', { class: 'num' }, fmtCompact(t2.disc, 2)), h('td', { class: 'num' }, '×' + (t2.disc / base.disc).toFixed(2)), h('td', { class: 'num' }, '$' + t2.per_daly_disc.toFixed(2))); })()));
+  })();
+  ui.redteam.replaceChildren(
+    h('p', {}, 'The sheet’s Median reads as a result ', h('b', {}, 'if the research succeeds'), ', with the full maize QPM growth effect applied to every crop. The reviewers’ central adjustments bring it from 7.0M DALYs at $8.36 per discounted DALY to about 1M expected DALYs at roughly $90 (≈$34 if the edits work). The 2050 cutoff is the main upside left out.'),
+    h('div', { class: 'table-wrap' }, levers), h('div', { class: 'table-wrap' }, t), h('div', { class: 'table-wrap' }, mc),
+    h('p', { class: 'muted' }, 'Monte Carlo by the accounting reviewer, outside this page (distributions: the sheet’s Pessimistic/Optimistic as 5th/95th percentiles, shared technical and regulatory factors, P(success) with correlated crops). Many reviewer numbers are flagged unverified in their notes.'));
 }
 function renderCompare(P) {
   const rows = [0, 1, 2].map(s => ({ s, r: run(D, defaults(D, s)).totals }));

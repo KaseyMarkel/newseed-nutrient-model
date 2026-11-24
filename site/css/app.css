@@ -434,3 +434,8 @@ details.boost-group > summary .cnt { font-size: 11px; font-weight: 600; color: v
 .boost-flag.fl-spec { background: var(--amber-soft); border-color: var(--amber); color: #7a4d06; }
 table.dt.health tr.off td { opacity: .5; }
 table.dt.health td.rng { color: var(--muted); font-size: 12px; }
+.boost-presets .btn.rt { border-color: #7a4f9e; color: #7a4f9e; }
+.boost-presets .btn.rt.on { background: #7a4f9e; color: #fff; }
+table.rt-findings td { white-space: normal; }
+table.rt-findings td:first-child { min-width: 320px; max-width: 560px; }
+table.rt-findings td.num { white-space: normal; text-align: left; min-width: 140px; }

@@ -62,6 +62,15 @@ Passarelli country inadequacy × GBD-burden-per-case or speculative priors, with
 phytate cut as a Zn/Fe absorption lever, zinc burden anchor (WHO 2002 sheet / GBD 2017 / GBD 2019), crop toggles,
 a fix for the sheet's fiber-gap quirk (Q2).
 
+## Red-team (2026-11-23)
+Three independent reviews (rollout & reach; health effects; accounting & code), each quantified with engine runs.
+Findings and central adjustments: site/js/global_redteam.js (shown on the global page; "Red-team central" preset).
+New engine levers, all defaulting to the sheet: p_success per crop, qpm_ref (stunting scaled by edit size),
+qpm_transfer per crop, crop_lag per crop, horizon, advocacy in costs. Extras: vitamin A counted in maize only,
+fortification factors for iodine (0.3) and folate (0.8). `node tools/redteam_presets.mjs` prints each lever alone.
+Not yet modeled: population growth by year, domestic-production share (imported wheat), per-country baseline
+coverage, a live Monte Carlo.
+
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
 https://kaseymarkel.com/newseed-nutrient-model/ . Pages carry `noindex`.

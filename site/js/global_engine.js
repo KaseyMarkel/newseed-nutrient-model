@@ -74,13 +74,21 @@ export function defaults(D, s = 1) {
     extras: {},                   // { id: { boost, gap, daly, prevKey, group, ret: [m,r,w] } } (extension)
     phytate: 0,                   // extension: share of the maximum phytate cut (edit knockouts); raises bioavailable Zn/Fe
     phyt_gain: { zn: 0.25, fe: 0.15 }, // absorption gain at the full cut (adult lpa trials far larger; Guatemalan child trial null: shrunk)
-    cost_mult: 1
+    cost_mult: 1,
+    // ---- red-team levers (2026-11-23). Defaults reproduce the sheet exactly. ----
+    p_success: [1, 1, 1],         // probability the edits work in maize / rice / wheat (1 = results conditional on success)
+    qpm_ref: null,                // stunting dose: growth × min(1, prot_boost × lab_field / qpm_ref); null = sheet (full QPM effect)
+    qpm_transfer: [1, 1, 1],      // share of the maize QPM growth evidence that carries to each crop
+    crop_lag: [0, 0, 0],          // years from a country's approval to plantable edited seed, per crop
+    horizon: 2050,                // last year counted (secular decline continues; costs continue at the 2050 rate)
+    advocacy: true                // $1M/yr advocacy (2028 on) in costs; it does not move approval years in the model
   };
 }
+export const yearsTo = h => Array.from({ length: Math.max(1, h - 2029) }, (_, k) => 2030 + k);
 
 // Katie Stunting tab: relative fall in stunting prevalence (W) and mortality DALYs per protected child (V)
-export function katie(D, P) {
-  const K = D.katie, sig = K.B9, dHAZ = K.B6 * P.growth * K.B7 / K.B8, rr = [1, K.B10, K.B11, K.B12];
+export function katie(D, P, growth = P.growth) {
+  const K = D.katie, sig = K.B9, dHAZ = K.B6 * growth * K.B7 / K.B8, rr = [1, K.B10, K.B11, K.B12];
   return D.countries.map(c => {
     let F; try { F = -2 - sig * normInv(c.stunt); } catch (e) { F = 0; }
     const H = F + dHAZ;
@@ -96,12 +104,18 @@ export function katie(D, P) {
 
 // ---- main ----
 export function run(D, P) {
-  const N = D.countries.length, Y = YEARS.length;
+  const YEARS = yearsTo(P.horizon || 2050);
+  const N = D.countries.length;
   const ph = P.phytate || 0;
   const bZn = (1 + P.zn_boost) * (1 + P.phyt_gain.zn * ph) - 1, bFe = (1 + P.fe_boost) * (1 + P.phyt_gain.fe * ph) - 1; // bioavailable boost
   const effZn = bZn * P.gap_zn * P.lab_field, effFe = bFe * P.gap_fe * P.lab_field, effP = P.prot_boost * P.gap_prot * P.lab_field;
   const gap = 1 - P.base_cov;
   const kt = katie(D, P);
+  // stunting growth effect per crop: dose (edit size vs QPM) × transferability of the maize QPM evidence
+  const dose = P.qpm_ref ? Math.min(1, P.prot_boost * P.lab_field / P.qpm_ref) : 1;
+  const gC = [0, 1, 2].map(ci => P.growth * dose * (P.qpm_transfer ? P.qpm_transfer[ci] : 1));
+  const ktC = gC.map(g => (g === P.growth ? kt : katie(D, P, g)));
+  const pS = P.p_success || [1, 1, 1], lag = P.crop_lag || [0, 0, 0];
   const fibGap = P.fixes.fiber_gap ? 1 - P.fib_adequate : 1 - D.scalars.fib_gap_cell; // Q2
   const extras = Object.entries(P.extras || {}).filter(([, x]) => x && x.boost > 0);
   const keys = ['zn', 'fe', 'prot', 'stunt', 'fiber', ...extras.map(([id]) => id)];
@@ -117,7 +131,7 @@ export function run(D, P) {
     return rate * (paf0 <= 0 ? 0 : (paf0 - paf1) / paf0) * P.fib_ax;
   });
   const vrOf = (ci, i, y) => {
-    const A = approval[i]; if (y < A || (P.crops && !P.crops[ci])) return 0;
+    const A = approval[i] + (approval[i] < 2100 ? lag[ci] : 0); if (y < A || (P.crops && !P.crops[ci])) return 0;
     const n = y - A + 1, cu = D.countries[i].curt[ci];
     const v = cu ? Math.min(P.ceil, P.zmult * cu[0] / 100, (cu[1] / 100) * P.speed * n) : Math.min(P.ceil, (P.ceil / P.yrs) * P.speed * n);
     return v * P.skew;
@@ -133,18 +147,18 @@ export function run(D, P) {
         const vr = VR[k][ci][i]; if (!vr) continue;
         const sh = c.share[ci], base = vr * gap;
         reach += sh * vr;
-        const add = (key, v) => { if (!v) return; crop[k][ci] += v; byNut[k][key] += v; country[i].crop[ci] += v; country[i].nut[key] += v; country[i].total += v; };
+        const add = (key, v0) => { const v = v0 * pS[ci]; if (!v) return; crop[k][ci] += v; byNut[k][key] += v; country[i].crop[ci] += v; country[i].nut[key] += v; country[i].total += v; };
         const zn = P.nutrients.zn ? secM * pop * sh * c.zn * P.zn_daly * effZn * P.ret_zn[ci] * base : 0;
         const fe = P.nutrients.fe ? secM * pop * sh * c.fe * P.fe_daly * effFe * P.ret_fe[ci] * base : 0;
         const pw = P.nutrients.prot ? secS * pop * sh * c.stunt * P.prot_daly * effP * base : 0;
-        const st = P.nutrients.stunt ? secS * pop5 * sh * c.stunt * P.stunt_inc * P.stunt_daly * (P.stunting_method === 'haz' ? kt[i].W : P.growth) * base : 0;
+        const st = P.nutrients.stunt ? secS * pop5 * sh * c.stunt * P.stunt_inc * P.stunt_daly * (P.stunting_method === 'haz' ? ktC[ci][i].W : gC[ci]) * base : 0;
         add('zn', zn); add('fe', fe); add('prot', pw); add('stunt', st);
-        sums.zn += zn; sums.fe += fe; sums.prot += pw;
+        sums.zn += zn * pS[ci]; sums.fe += fe * pS[ci]; sums.prot += pw * pS[ci];
         for (const [id, x] of extras) {
           const pv = c.pas && c.pas[x.prevKey] ? c.pas[x.prevKey][x.group || 'all'] : null;
-          if (pv == null) continue;
+          if (pv == null || (x.routeCrops && !x.routeCrops[ci])) continue;
           const grp = x.group === 'u5' ? pop5 : x.group === 'w' ? pop * (x.wshare || 0.25) : pop;
-          add(id, secM * grp * sh * pv * x.daly * (x.boost * x.gap * P.lab_field) * (x.ret ? x.ret[ci] : 1) * base);
+          add(id, secM * grp * sh * pv * x.daly * (x.fort ?? 1) * (x.boost * x.gap * P.lab_field) * (x.ret ? x.ret[ci] : 1) * base);
         }
         if (ci === 2 && P.nutrients.fiber) add('fiber', pop * fib[i] * vr * fibGap);
       }
@@ -169,8 +183,11 @@ export function run(D, P) {
   const vpd = gdpW.map(g => g * P.daly_gdp_mult);
   totals.value = sum(r => r.maize * vpd[0] + r.rice * vpd[1] + r.wheat * vpd[2]);
   totals.value_disc = sum(r => (r.maize * vpd[0] + r.rice * vpd[1] + r.wheat * vpd[2]) * r.df);
-  const cost = D.costs.total.reduce((s, v) => s + v, 0) * P.cost_mult + D.costs.extra_2027_29 * P.cost_mult;
-  const costDisc = D.costs.total.reduce((s, v, j) => s + v / Math.pow(1 + P.disc, j), 0) * P.cost_mult + D.costs.extra_2027_29 * P.cost_mult / Math.pow(1 + P.disc, 1.5);
+  // costs 2026..horizon: the sheet's grid, held at the 2050 rate beyond 2050; advocacy ($1M/yr from 2028) optional
+  const cy = Array.from({ length: Math.max(25, (P.horizon || 2050) - 2025) }, (_, j) => 2026 + j);
+  const cyc = cy.map((y, j) => (j < D.costs.total.length ? D.costs.total[j] : D.costs.total[D.costs.total.length - 1]) - (P.advocacy === false && y >= 2028 ? 1e6 : 0));
+  const cost = cyc.reduce((s, v) => s + v, 0) * P.cost_mult + D.costs.extra_2027_29 * P.cost_mult;
+  const costDisc = cyc.reduce((s, v, j) => s + v / Math.pow(1 + P.disc, j), 0) * P.cost_mult + D.costs.extra_2027_29 * P.cost_mult / Math.pow(1 + P.disc, 1.5);
   totals.cost = cost; totals.cost_disc = costDisc;
   totals.per_daly = totals.total > 0 ? cost / totals.total : null;
   totals.per_daly_disc = totals.disc > 0 ? costDisc / totals.disc : null;
@@ -178,5 +195,5 @@ export function run(D, P) {
   return { rows, totals, byNut: byNut.map(r => Object.fromEntries(Object.entries(r).map(([k2, v]) => [k2, v * att]))), nutTotals,
     country: country.map((c, i) => ({ ...c, total: c.total * att, crop: c.crop.map(v => v * att), nut: Object.fromEntries(Object.entries(c.nut).map(([k2, v]) => [k2, v * att])),
       name: D.countries[i].name, iso3: D.countries[i].iso3, approval: approval[i], region: D.countries[i].region })),
-    reached: YEARS.map((y, k) => ({ year: y, people: reached[k] })), approval, vpd, katie: kt, keys };
+    reached: YEARS.map((y, k) => ({ year: y, people: reached[k] })), approval, vpd, katie: kt, keys, years: YEARS, dose, gC };
 }
