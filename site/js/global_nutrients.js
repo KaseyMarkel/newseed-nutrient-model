@@ -62,7 +62,7 @@ export const GLOBAL_EXTRAS = [
 ];
 // Zinc burden anchors for the sheet's zinc DALYs-per-case (= anchor ÷ 1.5B × recalibration).
 export const ZINC_ANCHORS = [
-  { id: 'who2002', label: 'WHO 2002: 28M DALYs (sheet)', dalys: 28e6 },
-  { id: 'gbd2017', label: 'GBD 2017: 2.6M', dalys: 2.6e6 },
-  { id: 'gbd2019', label: 'GBD 2019: 0.26M', dalys: 0.26e6 }
+  { id: 'who2002', label: 'WHO 2002: ~28M DALYs (sheet; 1.9% of DALYs)', dalys: 28e6 },
+  { id: 'gbd2017', label: 'GBD 2017: 2.58M (ages 1–4; diarrhoea + LRI)', dalys: 2.58e6 },
+  { id: 'gbd2019', label: 'GBD 2019: 0.26M (ages 1–4; diarrhoea only)', dalys: 0.259e6 }
 ];

@@ -2,6 +2,7 @@
 // with every input as a control, plus extra nutrients (global_nutrients.js).
 import { run, defaults, CROPS } from './global_engine.js';
 import { REDTEAM } from './global_redteam.js';
+import { runMC, RT_DISTS } from './global_mc.js';
 import { GLOBAL_EXTRAS, ZINC_ANCHORS } from './global_nutrients.js';
 import { h, renderHeader, renderFooter, card, accordion, setupDrawer, controlsButton } from './ui.js';
 import { fmtNum, fmtCompact } from './units.js';
@@ -14,7 +15,7 @@ const NUT = { zn: ['Zinc', '#2f5f8f'], fe: ['Iron', '#8e3129'], prot: ['Protein 
 for (const x of GLOBAL_EXTRAS) NUT[x.id] = [x.label, x.color];
 const SHEET_MEDIAN = 7009199.90781109;
 
-let D, st, out, ui = {};
+let D, st, out, ui = {}, mc = null, mcBusy = false;
 const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && typeof s === 'object') return s; } catch (e) { /* none */ } return null; };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* ignore */ } };
 
@@ -96,6 +97,21 @@ function redteamControls(P) {
   ].filter(Boolean);
 }
 
+function structureControls(P) {
+  const sw = (id, path, label) => { const i = h('input', { type: 'checkbox', id, checked: get(P, path) ? true : null }); i.addEventListener('change', () => setOv(path, i.checked)); return h('label', { class: 'switch' }, i, h('span', {}, label)); };
+  const bm = h('input', { type: 'checkbox', id: 'g-basec', checked: P.base_mode === 'country' ? true : null });
+  bm.addEventListener('change', () => setOv('base_mode', bm.checked ? 'country' : 'flat'));
+  return [
+    h('div', { class: 'boost-gnote' }, 'New in v1.5; all off reproduces the v1.4 sheet. “Red-team central” turns all three on.'),
+    sw('g-popg', 'pop_growth', 'Population grows by year (UN WPP 2024 medium; sheet holds 2030 fixed)'),
+    h('div', { class: 'boost-hint' }, 'Sub-Saharan Africa +46% 2030→2050, but India’s under-5s −14%: net ×1.01 at the Median.'),
+    sw('g-dom', 'domestic', 'Credit only domestically grown grain (FAOSTAT 2022–24; imports go to feed first)'),
+    h('div', { class: 'boost-hint' }, 'Edited CG varieties reach only what a country grows: wheat in Indonesia, Philippines, Nigeria, Kenya, Guatemala ≈ all imported.'),
+    h('label', { class: 'switch' }, bm, h('span', {}, 'Already-biofortified counterfactual by country (instead of a flat ' + Math.round(P.base_cov * 100) + '%)')),
+    P.base_mode === 'country' ? slider(P, 'Floor where no program is known', 'base_floor', 0, 0.2, 0.005, pct1, 'Research 2026-11-24: 2% (0.5–5%). Known programs: Pakistan wheat zinc 55%, India wheat zinc 50% / iron 25%, Bangladesh wheat 35%, Ghana maize QPM 10%, Ethiopia maize QPM 5%, Indonesia rice zinc 4%, Bangladesh rice zinc 3%.') : null
+  ].filter(Boolean);
+}
+
 function buildSidebar() {
   const P = params();
   const sc = h('div', { class: 'boost-presets' }, ['Pessimistic', 'Median', 'Optimistic'].map((n, s) =>
@@ -130,6 +146,7 @@ function buildSidebar() {
       slider(P, 'Phytate cut (edit knockouts)', 'phytate', 0, 1, 0.05, pct, 'Not in the sheet. Share of the maximum cut (lpa-type, −60–80% phytate): raises absorbed zinc up to +25% and iron +15% (shrunk: adult gains were far larger, a Guatemalan child trial found none). The concept note names phytate knockouts as an edit target.')], true),
     extras,
     accordion('Red-team levers', 'info', redteamControls(P), !!st.rt),
+    accordion('Structure (v1.5)', 'method', structureControls(P), !!(P.pop_growth || P.domestic || P.base_mode === 'country')),
     accordion('From boost to health', 'method', [
       slider(P, 'Zinc gap closed per unit boost', 'gap_zn', 0, 1, 0.05, num(2), 'Sheet: 0.5'),
       slider(P, 'Iron gap closed per unit boost', 'gap_fe', 0, 1, 0.05, num(2), 'Sheet: 0.25 (phytate, food matrix)'),
@@ -183,13 +200,15 @@ function buildContent() {
   const cY = card('DALYs averted per year', 'chart', [h('div', { class: 'card-body' }, ui.yearlyMode), h('div', { class: 'card-body', style: { padding: '6px' } }, ui.yearly)], { foot: 'Credited to New Seed (attribution applied), undiscounted.' });
   const cN = card('DALYs by nutrient pathway', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.nut));
   const cM = card('Where the DALYs are', 'map', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.map), { foot: '75 modeled countries; grey = not modeled.' });
-  const cR = card('People eating gene-edited biofortified grain', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.reach), { foot: 'Calorie-weighted eaters of CG-derived edited varieties, net of the 15% already biofortified (sheet People Reached, block 1).' });
+  const cR = card('People eating gene-edited biofortified grain', 'chart', h('div', { class: 'card-body', style: { padding: '6px' } }, ui.reach), { foot: 'Calorie-weighted eaters of CG-derived edited varieties, net of those already biofortified (sheet People Reached, block 1).' });
   const cT = card('Countries', 'table', ui.table);
   const cC = card('Scenarios side by side', 'list', ui.compare);
   ui.redteam = h('div', { class: 'card-body' });
+  ui.mc = h('div', { class: 'card-body' }); ui.mcPlot = h('div', { class: 'plot' });
+  const cMC = card('Uncertainty (live Monte Carlo)', 'chart', [ui.mc, h('div', { class: 'card-body', style: { padding: '6px' } }, ui.mcPlot)], { foot: 'Draws are seeded, so the same settings give the same result. Cost is paid whether or not the edits work, so the expected cost per DALY is expected cost ÷ expected DALYs.' });
   const cRT = card('Red-team review (three independent reviewers, 2026-11-23)', 'info', ui.redteam);
   const cMeth = card('How the model works', 'method', h('div', { class: 'card-body prose' }, methods()));
-  ui.content.replaceChildren(ui.title, top, h('div', { class: 'two-col' }, cY, cN), h('div', { class: 'two-col' }, cM, cR), cRT, cT, h('div', { class: 'two-col' }, cC, cMeth));
+  ui.content.replaceChildren(ui.title, top, h('div', { class: 'two-col' }, cY, cN), cMC, h('div', { class: 'two-col' }, cM, cR), cRT, cT, h('div', { class: 'two-col' }, cC, cMeth));
 }
 
 function methods() {
@@ -201,9 +220,10 @@ function methods() {
       h('li', {}, h('b', {}, 'Who eats it: '), 'population × the crop’s share of national calories (FAO), net of 15% already biofortified.'),
       h('li', {}, h('b', {}, 'Health: '), 'zinc and iron = inadequacy prevalence × DALYs per person-year at risk × effectiveness (boost × gap ratio × 0.6 lab→field) × processing retention; protein = stunting prevalence × 0.01 for all ages, plus under-5 stunting cases averted (HAZ-distribution shift from the Gunaratna growth effect) × 2.8 DALYs; wheat fiber via the GBD fiber–CVD dose-response.'),
       h('li', {}, h('b', {}, 'Accounting: '), 'secular decline in gaps, × 30% credited to New Seed, minus a cross-crop cap; discounted at 4.3% to 2026; valued at 2.3 × GDP per capita.')),
-    h('p', {}, h('b', {}, 'Differs from the concept note: '), 'the note (v1.0, Nov 6) quotes 3.24M DALYs and ~$19 per discounted DALY; the v1.4 sheet gives 7.0M and $8.36 (Median).'),
+    h('p', {}, h('b', {}, 'v1.5 additions (off by default): '), 'population by year from UN WPP 2024 (all ages, under-5, women 15–49); only domestically grown grain credited (FAOSTAT food balances 2022–24, imports assumed to go to feed first); the already-biofortified counterfactual by country, crop and trait (2% floor plus known zinc wheat, zinc rice and QPM programs); red-team levers; a live Monte Carlo.'),
+    h('p', {}, h('b', {}, 'Differs from the concept note: '), 'the note (v1.0, Nov 6) quotes 3.24M DALYs and ~$19 per discounted DALY; the v1.4 sheet gives 7.0M and $8.36 (Median). Switching the stunting method back to the growth rate gives 3.45M and $17.01, so the v1.4 HAZ-shift method explains almost all of the gap.'),
     h('p', {}, h('b', {}, 'Sheet quirks reproduced (from the extraction): '),
-      'Q2 fiber always uses the 80% “already adequate” cell (a switch fixes it); Q3 a sheet “Custom” scenario drops the ×0.6 lab→field loss (here it never does); Q4 approval years read the tier table, floor 2030; Q6 program costs stop partner contracts in 2032 and add $1.2M for 2027–29 on top of a grid that starts in 2026; population held at 2030; the cross-crop cap is 0 at all presets.'),
+      'Q2 fiber always uses the 80% “already adequate” cell (a switch fixes it); Q3 a sheet “Custom” scenario drops the ×0.6 lab→field loss (here it never does); Q4 approval years read the tier table, floor 2030; Q6 program costs stop partner contracts in 2032 and add $1.2M for 2027–29 on top of a grid that starts in 2026; population held at 2030 (v1.5 switch); the cross-crop cap is 0 at all presets.'),
     h('p', { class: 'muted' }, 'Sources: the BOTEC sheet (UN WPP 2024, FAO food balances, Passarelli 2024, JME stunting, World Bank GDP, Gunaratna 2010, Olofin 2013, Threapleton 2013, Wei 2024); extra nutrients: Passarelli et al. 2024 (Lancet Glob Health) country inadequacy.')
   ];
 }
@@ -253,7 +273,50 @@ function render() {
   // reached
   Plotly.react(ui.reach, [{ type: 'scatter', mode: 'lines', fill: 'tozeroy', x: out.years, y: out.reached.map(r => r.people), line: { color: '#2f5f8f' }, hovertemplate: '%{y:,.0f}<extra></extra>' }],
     { ...lay('People'), showlegend: false }, CFG);
-  renderTable(); renderCompare(P); renderRedteam();
+  renderTable(); renderCompare(P); renderRedteam(); renderMC();
+}
+
+// ---- Monte Carlo ----
+const mcKey = () => JSON.stringify([params(), st.mcMode || 'rt', st.mcN || 1000]);
+function renderMC() {
+  const mode = st.mcMode || 'rt', n = st.mcN || 1000;
+  const sel = h('select', { id: 'g-mcmode', style: { width: 'auto' } }, [['rt', 'Sheet ranges + red-team uncertainty'], ['sheet', 'Sheet ranges only (Pessimistic/Optimistic = 5th/95th)']].map(([v, l]) => h('option', { value: v, selected: mode === v ? true : null }, l)));
+  sel.addEventListener('change', () => { st.mcMode = sel.value; save(); renderMC(); });
+  const ns = h('select', { id: 'g-mcn', style: { width: 'auto' } }, [500, 1000, 2000, 5000].map(v => h('option', { value: v, selected: n === v ? true : null }, v.toLocaleString() + ' draws')));
+  ns.addEventListener('change', () => { st.mcN = +ns.value; save(); renderMC(); });
+  const prog = h('span', { class: 'muted' });
+  const btn = h('button', { class: 'btn small on', id: 'g-mcrun', disabled: mcBusy ? true : null, onClick: () => doMC(prog) }, mcBusy ? 'Running…' : 'Run');
+  const stale = mc && mc.key !== mcKey();
+  const head = h('div', { class: 'boost-presets', style: { alignItems: 'center', flexWrap: 'wrap', gap: '8px' } }, sel, ns, btn, prog);
+  const body = [h('p', { class: 'small' }, 'Draws every scenario input around your current settings with the sheet’s own spread (related inputs move together), and draws whether the edits work in each crop. “Red-team uncertainty” also draws the red-team inputs below, replacing your values for those.'), head];
+  if (!mc) body.push(h('div', { class: 'note info' }, 'Press Run (about 2 seconds per 1,000 draws).'));
+  else {
+    const S = mc.S, M = v => fmtCompact(v, 2), $ = v => (isFinite(v) ? '$' + (v >= 100 ? v.toFixed(0) : v.toFixed(2)) : '–');
+    if (stale) body.push(h('div', { class: 'note' }, 'Settings changed since this run. Press Run to update.'));
+    body.push(h('div', { class: 'tiles boost-tiles' },
+      tile('Expected discounted DALYs', M(S.meanDisc), `median ${M(S.disc[2])} · 5th–95th ${M(S.disc[0])}–${M(S.disc[4])}`, 'hl'),
+      tile('Expected cost per discounted DALY', $(S.ev), 'expected cost ÷ expected DALYs', 'hl'),
+      tile('Chance of no DALYs', (S.pZero * 100).toFixed(0) + '%', 'the edits fail in every crop, or nothing is planted in time'),
+      tile('$ per DALY when it works', $(S.perDaly[2]), `median of draws with DALYs; 5th–95th ${$(S.perDaly[0])}–${$(S.perDaly[4])}`),
+      tile('Chance under $50 per DALY', (S.pUnder(50) * 100).toFixed(0) + '%', `under $100: ${(S.pUnder(100) * 100).toFixed(0)}%`),
+      tile('Undiscounted DALYs', M(S.meanTotal), `expected; median ${M(S.total[2])}`)));
+    body.push(h('p', { class: 'muted small' }, `${S.n.toLocaleString()} draws, ${mc.mode === 'rt' ? 'sheet ranges + red-team uncertainty' : 'sheet ranges only'}.`));
+  }
+  if (mode === 'rt') body.push(h('details', {}, h('summary', {}, 'Red-team distributions'), h('table', { class: 'dt' }, h('tbody', {}, RT_DISTS.map(([a, b]) => h('tr', {}, h('td', {}, a), h('td', {}, b)))))));
+  ui.mc.replaceChildren(...body);
+  if (mc) {
+    const x = mc.S.raw.map(d => d.disc);
+    Plotly.react(ui.mcPlot, [{ type: 'histogram', x, nbinsx: 60, marker: { color: '#2f5f8f' }, hovertemplate: '%{x}: %{y} draws<extra></extra>' }],
+      { font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 50, r: 10, t: 10, b: 40 }, height: 240, bargap: 0.05,
+        xaxis: { title: { text: 'Discounted DALYs (credited to New Seed)' }, gridcolor: '#eee8e2' }, yaxis: { title: { text: 'Draws' }, gridcolor: '#eee8e2' } }, CFG);
+  } else Plotly.purge(ui.mcPlot);
+}
+async function doMC(prog) {
+  if (mcBusy) return; mcBusy = true;
+  const key = mcKey(), mode = st.mcMode || 'rt', n = st.mcN || 1000;
+  document.getElementById('g-mcrun')?.setAttribute('disabled', '');
+  const S = await runMC(run, D, params(), { n, mode, batch: 50, onProgress: (d, t) => { prog.textContent = `${d.toLocaleString()} / ${t.toLocaleString()}`; } });
+  mc = { S, key, mode }; mcBusy = false; renderMC();
 }
 function topCountry() { const c = out.country.slice().sort((a, b) => b.total - a.total)[0]; return c && out.totals.total > 0 ? `${c.name} ${(c.total / out.totals.total * 100).toFixed(0)}%` : '–'; }
 function renderTable() {
@@ -276,8 +339,6 @@ function renderRedteam() {
   const t = h('table', { class: 'dt health rt-findings' },
     h('thead', {}, h('tr', {}, ['Finding', 'Direction', 'Effect on Median', 'Control here'].map(x => h('th', {}, x)))),
     h('tbody', {}, REDTEAM.findings.map(([f, d, e, c]) => h('tr', {}, h('td', {}, f), h('td', {}, h('span', { class: 'conf ' + dirCls(d) }, d)), h('td', { class: 'num' }, e), h('td', {}, c)))));
-  const mc = h('table', { class: 'dt' }, h('thead', {}, h('tr', {}, ['Monte Carlo (2,000 draws)', 'Discounted DALYs p5 / p50 / p95', '$ per discounted DALY'].map(x => h('th', {}, x)))),
-    h('tbody', {}, REDTEAM.monteCarlo.map(r => h('tr', {}, r.map((x, j) => h('td', { class: j ? 'num' : '' }, x))))));
   const levers = (() => {
     const base = run(D, defaults(D, 1)).totals;
     return h('table', { class: 'dt' }, h('thead', {}, h('tr', {}, ['Red-team lever (alone, on the sheet Median)', 'Discounted DALYs', '× Median', '$/disc. DALY'].map(x => h('th', {}, x)))),
@@ -286,10 +347,12 @@ function renderRedteam() {
       (() => { const P = defaults(D, 1); for (const l of REDTEAM.levers) l.apply(P, D); const t2 = run(D, P).totals;
         return h('tr', { class: 'total' }, h('td', {}, 'All together (Red-team central)'), h('td', { class: 'num' }, fmtCompact(t2.disc, 2)), h('td', { class: 'num' }, '×' + (t2.disc / base.disc).toFixed(2)), h('td', { class: 'num' }, '$' + t2.per_daly_disc.toFixed(2))); })()));
   })();
+  const Pa = defaults(D, 1); for (const l of REDTEAM.levers) l.apply(Pa, D); const ra = run(D, Pa).totals;
+  const Pb = defaults(D, 1); for (const l of REDTEAM.levers) if (l.id !== 'p_success') l.apply(Pb, D); const rb = run(D, Pb).totals;
   ui.redteam.replaceChildren(
-    h('p', {}, 'The sheet’s Median reads as a result ', h('b', {}, 'if the research succeeds'), ', with the full maize QPM growth effect applied to every crop. The reviewers’ central adjustments bring it from 7.0M DALYs at $8.36 per discounted DALY to about 1M expected DALYs at roughly $90 (≈$34 if the edits work). The 2050 cutoff is the main upside left out.'),
-    h('div', { class: 'table-wrap' }, levers), h('div', { class: 'table-wrap' }, t), h('div', { class: 'table-wrap' }, mc),
-    h('p', { class: 'muted' }, 'Monte Carlo by the accounting reviewer, outside this page (distributions: the sheet’s Pessimistic/Optimistic as 5th/95th percentiles, shared technical and regulatory factors, P(success) with correlated crops). Many reviewer numbers are flagged unverified in their notes.'));
+    h('p', {}, 'The sheet’s Median reads as a result ', h('b', {}, 'if the research succeeds'), `, with the full maize QPM growth effect applied to every crop. The reviewers’ central adjustments, plus the v1.5 structure (population growth, domestic grain only, baseline by country), bring it from 7.0M DALYs at $8.36 per discounted DALY to ${fmtCompact(ra.total, 2)} expected DALYs (2030–2060) at $${ra.per_daly_disc.toFixed(0)} per discounted DALY ($${rb.per_daly_disc.toFixed(0)} if the edits work).`),
+    h('div', { class: 'table-wrap' }, levers), h('div', { class: 'table-wrap' }, t),
+    h('p', { class: 'muted' }, 'Claims were fact-checked against primary sources on 2026-11-24 and corrected where needed (Gunaratna 2010 is in Food Policy: +9% height, +12% weight gain; the Ethiopian trial compared QPM growers with and without a consumption package; India’s edited rice seed reaches farmers 2026–27). The uncertainty card above replaces the reviewer’s offline Monte Carlo.'));
 }
 function renderCompare(P) {
   const rows = [0, 1, 2].map(s => ({ s, r: run(D, defaults(D, s)).totals }));
@@ -303,7 +366,7 @@ function renderCompare(P) {
 function refresh() { buildSidebar(); render(); }
 
 async function main() {
-  const r = await fetch('data/global.json');
+  const r = await fetch('data/global.json' + new URL(import.meta.url).search);
   if (!r.ok) throw new Error('data/global.json: HTTP ' + r.status);
   D = await r.json();
   st = load() || { s: 1, ov: {}, extras: {} };

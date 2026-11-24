@@ -1,0 +1,10 @@
+iso3,crop,trait,low,central,high,source
+PAK,wheat,zn,0.40,0.55,0.70,"HarvestPlus 2024 Annual Report pp.4,16 (15 Mt zinc wheat of 29 Mt harvest); Pakistan Economic Survey 2024-25; Akbar-2019 ~42% of area (news, unverified)"
+IND,wheat,zn,0.35,0.50,0.65,"CIMMYT 20 May 2026: high-zinc wheat on nearly half of India's wheat area (70% in NW Plain Zone)"
+IND,wheat,fe,0.10,0.25,0.40,"Judgement: several Indian biofortified wheats are high Zn + Fe (CIMMYT 2026 does not split by trait)"
+BGD,wheat,zn,0.25,0.35,0.45,"Daily Star 26 Jan 2026 quoting BWMRI: BARI Gom 33 ~35% of wheat area (area share; most wheat eaten is imported)"
+GHA,maize,prot,0.05,0.10,0.20,"Ragasa, Chapoto & Kolavalli 2014 (IFPRI GSSP PN5): certified seed 15% of area, ~96% Obatanpa QPM; trait decays in recycled seed"
+IDN,rice,zn,0.015,0.04,0.08,"HarvestPlus 2024 AR p.15 (250k ha Inpari IR Nutri Zinc) / BPS 2025 (10.05 Mha harvested)"
+ETH,maize,prot,0.02,0.05,0.10,"CIMMYT 14 May 2019: 11% adoption in NuME project areas; national share 2-5% (unverified); government target 10%"
+BGD,rice,zn,0.015,0.03,0.06,"TBS News 2023 (1.2 lakh ha of 108 lakh ha); HarvestPlus 2024 AR (3.55M people)"
+GTM,maize,zn,0.005,0.02,0.04,"Semilla Nueva deck 2021: 5,424 ha of 850,000 ha (0.6%); government replication 29,000 families"

@@ -68,8 +68,17 @@ Findings and central adjustments: site/js/global_redteam.js (shown on the global
 New engine levers, all defaulting to the sheet: p_success per crop, qpm_ref (stunting scaled by edit size),
 qpm_transfer per crop, crop_lag per crop, horizon, advocacy in costs. Extras: vitamin A counted in maize only,
 fortification factors for iodine (0.3) and folate (0.8). `node tools/redteam_presets.mjs` prints each lever alone.
-Not yet modeled: population growth by year, domestic-production share (imported wheat), per-country baseline
-coverage, a live Monte Carlo.
+Claims fact-checked against primary sources 2026-11-24 (findings text corrected).
+
+## v1.5 (2026-11-24)
+Structure switches, all off by default (sheet parity holds), all on in "Red-team central":
+- `pop_growth`: UN WPP 2024 medium variant by year, 2030–2080 (global/build/wpp_build.py → global/inputs/wpp2024_medium.csv).
+- `domestic`: only domestically grown grain is credited; FAOSTAT food balances 2022–24, imports assumed to go to feed
+  first (global/build/fao_domestic_build.py → global/inputs/fao_self_sufficiency.csv, column `dfs`).
+- `base_mode: 'country'`: already-biofortified counterfactual by country × crop × trait (global/inputs/baseline_coverage.csv,
+  sourced) with `base_floor` 2% elsewhere, instead of a flat 15%.
+global/build/augment_v15.py adds these to site/data/global.json. Live Monte Carlo: site/js/global_mc.js (page card;
+`node tools/mc.mjs 2000` from the command line). Sheet mirror: Google Sheet "Gene_editing_mainstreaming_BOTEC v1.5-WIP".
 
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
