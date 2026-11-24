@@ -155,9 +155,9 @@ for ci, crop in enumerate(CR):
     pS = f'Inputs!$G${52 + ci}'
     vr = rng('VR')
     f = {}
-    f['VR'] = (f'=ARRAYFORMULA(LET(yr,SEQUENCE(1,31,2030),A,Countries!$AJ$5:$AJ$79,st,A+IF(A<2100,Inputs!$G${60 + ci},0),n,yr-st+1,'
-               f'Z,Countries!${Z}$5:${Z}$79,AA,Countries!${AA}$5:${AA}$79,cl,Inputs!$G$21,sp,Inputs!$G$23,zc,Inputs!$G$25*Z/100,'
-               f'lin,IF(Z="",cl/Inputs!$G$22*sp*n,AA/100*sp*n),cp,IF(Z="",cl,IF(cl<zc,cl,zc)),v,IF(lin<cp,lin,cp),'
+    f['VR'] = (f'=ARRAYFORMULA(LET(yr,SEQUENCE(1,31,2030),ap,Countries!$AJ$5:$AJ$79,st,ap+IF(ap<2100,Inputs!$G${60 + ci},0),n,yr-st+1,'
+               f'cz,Countries!${Z}$5:${Z}$79,ca,Countries!${AA}$5:${AA}$79,cl,Inputs!$G$21,sp,Inputs!$G$23,zc,Inputs!$G$25*cz/100,'
+               f'lin,IF(cz="",cl/Inputs!$G$22*sp*n,ca/100*sp*n),cp,IF(cz="",cl,IF(cl<zc,cl,zc)),v,IF(lin<cp,lin,cp),'
                f'IF(n<1,0,v*Inputs!$G$24*Inputs!$G${69 + ci}*IF(Inputs!$G$66,Countries!${dfs}$5:${dfs}$79,1))))')
     base = f'Countries!$E$5:$E$79*1E6*Population!$Q$5:$AU$79*Countries!${sh}$5:${sh}$79'
     f['Zn'] = f'=ARRAYFORMULA((1-Inputs!$G$28)^SEQUENCE(1,31,0)*{base}*Countries!$K$5:$K$79*Inputs!$G$78*Inputs!$G$74*Inputs!$G${46 + ci}*{vr}*$B$5:$B$79*{pS})'
@@ -175,7 +175,7 @@ for ci, crop in enumerate(CR):
     grid[0][0] = f'{CAP[ci]}: DALYs averted by country and year, before attribution. Each block is one array formula.'
     hdr = ['Country', 'Gap left: zinc', 'Gap left: iron', 'Gap left: protein', 'Stunting effect (W or growth)', 'Total DALYs, years counted']
     for j, x in enumerate(hdr): grid[1][j] = x
-    grid[2][0] = '=Countries!A5:A79'; grid[2][1] = gap(bz); grid[2][2] = gap(bf); grid[2][3] = gap(bp)
+    grid[2][0] = '=ARRAYFORMULA(Countries!A5:A79)'; grid[2][1] = gap(bz); grid[2][2] = gap(bf); grid[2][3] = gap(bp)
     grid[2][4] = f'=ARRAYFORMULA(IF(Inputs!$G$39="HAZ shift",\'Stunting HAZ\'!{W}13:{W}87,Inputs!$G${80 + ci}))'
     grid[2][5] = f'=ARRAYFORMULA(MMULT({sumblocks},TRANSPOSE(--(SEQUENCE(1,31,2030)<=Inputs!$G$63))))'
     for b in blocks:

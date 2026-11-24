@@ -3,7 +3,7 @@ summed over the latest 3 years available (2021-2023). Domestic share of what peo
 Usage: python3 -I fao_domestic_build.py <FoodBalanceSheets_E_All_Data_(Normalized).zip> <WPP2024_...Age5...csv.gz> <global.json> <out_csv>
 Streams both files (low memory). FBS items: Maize and products 2514, Rice and products 2807, Wheat and products 2511.
 Elements (1000 t): Production 5511, Import 5611, Export 5911, Domestic supply 5301, Food 5142, Feed 5521.
-`dfs` (domestic food share, used by the model) assumes imports go to feed first: food from domestic grain =
+`dfs` (domestic food share, used by the model) = 1 for net exporters (SSR >= 1); otherwise imports go to feed first: food from domestic grain =
 min(food, max(0, production - exports - max(0, feed - imports))); dfs = that / food. M49 -> ISO3 from WPP LocID."""
 import csv, gzip, io, json, sys, zipfile
 src, wpp, gj, out = sys.argv[1:5]
@@ -35,7 +35,7 @@ for iso in sorted(want):
         s = {k: sum(ys[y].get(k, 0) for y in yrs) for k in EL.values()}
         ssr = s['prod'] / s['dom'] if s['dom'] > 0 else ''
         dom_food = min(s['food'], max(0, s['prod'] - s['exp'] - max(0, s['feed'] - s['imp'])))
-        dfs = dom_food / s['food'] if s['food'] > 0 else (min(1, ssr) if ssr != '' else 1)
+        dfs = 1.0 if (ssr != '' and ssr >= 1) else (dom_food / s['food'] if s['food'] > 0 else (min(1, ssr) if ssr != '' else 1))  # net exporters eat their own grain
         rows.append([iso, crop, f'{yrs[0]}-{yrs[-1]}', round(s['prod'], 1), round(s['imp'], 1), round(s['exp'], 1), round(s['dom'], 1), round(s['food'], 1), round(s['feed'], 1), round(ssr, 4) if ssr != '' else '', round(dfs, 4)])
 with open(out, 'w', newline='') as f:
     w = csv.writer(f); w.writerow(['iso3', 'crop', 'years', 'production_kt', 'import_kt', 'export_kt', 'domestic_supply_kt', 'food_kt', 'feed_kt', 'ssr', 'dfs']); w.writerows(rows)

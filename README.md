@@ -78,7 +78,7 @@ Structure switches, all off by default (sheet parity holds), all on in "Red-team
 - `base_mode: 'country'`: already-biofortified counterfactual by country × crop × trait (global/inputs/baseline_coverage.csv,
   sourced) with `base_floor` 2% elsewhere, instead of a flat 15%.
 global/build/augment_v15.py adds these to site/data/global.json. Live Monte Carlo: site/js/global_mc.js (page card;
-`node tools/mc.mjs 2000` from the command line). Sheet mirror: Google Sheet "Gene_editing_mainstreaming_BOTEC v1.5-WIP".
+`node tools/mc.mjs 2000` from the command line). Sheet mirror: Google Sheet "Gene_editing_mainstreaming_BOTEC v1.5-WIP" (1kB4aDkFpCE_oMSbCsSigNbmr48j-v-IaVw_dtoDGjug), live formulas, equal to this engine at all four presets; layout from tools/sheet_v15_gen.py.
 
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
