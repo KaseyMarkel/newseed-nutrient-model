@@ -1,5 +1,5 @@
 """v1.5 additions to site/data/global.json (run after build_data.py):
-  popg  UN WPP 2024 medium-variant population relative to 2030, years 2030..2080: {all, u5, w} (w = women 15-49)
+  popg  UN WPP 2024 medium-variant population relative to 2030, years 2030..2080 (5-year anchors, linear between): {all, u5, w} (w = women 15-49)
   dfs   FAOSTAT domestic food share per crop [maize, rice, wheat] (imports go to feed first; fao_domestic_build.py)
   base  counterfactual conventional biofortification by 2035, per crop: {zn, fe, prot} shares (baseline_coverage.csv)
 Usage: python3 -I augment_v15.py <global.json> <wpp2024_medium.csv> <fao_self_sufficiency.csv> <baseline_coverage.csv>"""
@@ -15,7 +15,10 @@ for r in csv.DictReader(open(basef)):
     B.setdefault(r['iso3'], [{}, {}, {}])[['maize', 'rice', 'wheat'].index(r['crop'])][r['trait']] = float(r['central'])
 for c in D['countries']:
     p = P[c['iso3']]; b = p[2030]
-    c['popg'] = {k: [round(p[y][j] / b[j], 4) for y in range(2030, 2081)] for j, k in enumerate(('all', 'u5', 'w'))}
+    # 5-year anchors (ratio to 2030, 4 d.p.), linearly interpolated, so the Google Sheet mirror can reproduce them exactly
+    anc = {k: [round(p[y][j] / b[j], 4) for y in range(2030, 2081, 5)] for j, k in enumerate(('all', 'u5', 'w'))}
+    c['popg_anchor'] = anc
+    c['popg'] = {k: [a[(y - 2030) // 5] + (a[min((y - 2030) // 5 + 1, 10)] - a[(y - 2030) // 5]) * ((y - 2030) % 5) / 5 for y in range(2030, 2081)] for k, a in anc.items()}
     c['wshare'] = round(b[2] / b[0], 4)
     c['dfs'] = [round(F.get((c['iso3'], cr), 1.0), 4) for cr in ('maize', 'rice', 'wheat')]
     if c['iso3'] in B: c['base'] = B[c['iso3']]
