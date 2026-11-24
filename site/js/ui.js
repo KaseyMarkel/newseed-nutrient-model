@@ -268,7 +268,7 @@ export function buildSidebar(opts) {
 
 // Nutrient sliders, 0-100%; the engine runs when a slider is released. Core nutrients first,
 // then exploratory groups (collapsed), each slider with a flag on where it would matter.
-const FLAG_CLASS = { gt: 'fl-gt', none: 'fl-none', route: 'fl-route', elsewhere: 'fl-none' };
+const FLAG_CLASS = { gt: 'fl-gt', spec: 'fl-spec', none: 'fl-none', route: 'fl-route', elsewhere: 'fl-none' };
 function boostRow(x, b) {
   const pre = x.id === 'va' || x.pctOfTarget ? '' : '+';
   const chip = h('span', { class: 'boost-val' }, pre + b[x.id] + '%');

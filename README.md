@@ -42,6 +42,14 @@ engine's generic `extra_nutrients` path (lognormal intake calibrated to Guatemal
 carries a flag: modeled here / no projected effect here (effect elsewhere) / no known route into maize.
 Stunting can be counted in DALYs (opt-in) via Olofin 2013 mortality HRs. Test: `node tools/test_extras.mjs`.
 
+## Central estimates (2026-11-23)
+Every slider moves the DALY total. Speculative effects are central estimates (as likely too high as too low),
+not zeros: Guatemalan data where they exist, otherwise a Guatemala-adjusted prior plus trial evidence from
+elsewhere; trial point estimates used even when not significant; each row has a [low, high] range (low may be
+negative). Low-confidence rows count by default ("exclude" checkbox). Stunting counts via Olofin HRs with the
+excess risk halved for confounding. Cognition → DALYs at 0.002 per IQ point per child-year (derived).
+Check: `node tools/test_each_nutrient.mjs` (lists any slider that leaves DALYs unchanged).
+
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
 https://kaseymarkel.com/newseed-nutrient-model/ . Pages carry `noindex`.

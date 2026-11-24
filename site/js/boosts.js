@@ -34,12 +34,14 @@ for (const c of CORE) c.group = 'core';
 export const BOOSTS = [...CORE, ...CATALOG.map(x => ({ ...x, def: 0, extra: true }))];
 export const GROUPS = [
   { id: 'core', label: 'Modeled nutrients' },
-  { id: 'gt', label: 'More nutrients: Guatemala shortfall', note: 'Exploratory. Inadequacy modeled from survey prevalence; see each flag.' },
-  { id: 'elsewhere', label: 'More nutrients: shortfall elsewhere', note: 'Little or no shortfall in Guatemala, so little or no modeled effect here. Flags give the effect where it is common.' },
-  { id: 'nomaize', label: 'More nutrients: no known route into maize', note: 'Hypothetical: no breeding, transgenic or fertilizer route found. Flags say what it would buy if one existed.' }
+  { id: 'gt', label: 'More nutrients: Guatemala shortfall', note: 'Exploratory. Baseline from Guatemalan intake surveys; health effect is a speculative central estimate (see each flag).' },
+  { id: 'elsewhere', label: 'More nutrients: shortfall elsewhere', note: 'Shortfall data mostly from elsewhere. Modeled here with a Guatemala-adjusted prior and evidence from where it is common: speculative central estimates.' },
+  { id: 'nomaize', label: 'More nutrients: no known route into maize', note: 'Hypothetical: no breeding, transgenic or fertilizer route found. Modeled as if one existed, with speculative central estimates.' }
 ];
 // sliders that change the engine's child-level results (folate acts only in health.js)
-export const ENGINE_BOOSTS = ['fe', 'zn', 'prot', 'va', ...CATALOG.filter(x => x.model && x.model.p0 > 0).map(x => x.id)];
+export const ENGINE_BOOSTS = ['fe', 'zn', 'prot', 'va', ...CATALOG.filter(x => (x.model && x.model.p0 > 0) || x.absorption).map(x => x.id)];
+// absorption levers (low phytate) multiply the effective zinc / iron content of biofortified maize
+function leverMult(b, k) { let m = 1; for (const x of CATALOG) if (x.absorption && x.absorption[k] && b[x.id]) m *= 1 + x.absorption[k] * b[x.id] / 100; return m; }
 export const BOOST_DEFAULTS = Object.freeze(Object.fromEntries(BOOSTS.map(b => [b.id, b.def])));
 
 export function cleanBoosts(b) {
@@ -59,8 +61,9 @@ export function boostParams(b) {
   b = cleanBoosts(b);
   if (isDefaultBoost(b)) return {};
   const p = {};
-  if (b.fe !== BOOST_DEFAULTS.fe) p.factor_fe = 1 + b.fe / 100;
-  if (b.zn !== BOOST_DEFAULTS.zn) p.factor_zn = 1 + b.zn / 100;
+  const mFe = leverMult(b, 'fe'), mZn = leverMult(b, 'zn');
+  if (b.fe !== BOOST_DEFAULTS.fe || mFe !== 1) p.factor_fe = (1 + b.fe / 100) * mFe;
+  if (b.zn !== BOOST_DEFAULTS.zn || mZn !== 1) p.factor_zn = (1 + b.zn / 100) * mZn;
   if (b.prot !== BOOST_DEFAULTS.prot) {
     p.factor_prot = 1 + b.prot / 100;
     p.lystrp_scale = b.prot / AZAHAR_QPM_BOOST;

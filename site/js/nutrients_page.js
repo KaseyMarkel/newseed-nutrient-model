@@ -86,7 +86,7 @@ export async function renderNutrients(sk, opts) {
 
   sk.tiles.replaceChildren(
     tile('Stunting cases averted', fmtNum(n.n_stunting_averted, 0), `${fmtNum(n.stunting_change_pp, 2)} pp` + (diff ? ` · replica: ${fmtNum(r0.n_stunting_averted, 0)}` : ''), 'hl'),
-    tile('DALYs averted per year', fmtNum(health.dalys, 0), (hp.stunting_dalys ? 'includes stunting deaths' : 'stunting not included') + (hp.mortality ? ' · deaths counted' : ''), 'hl'),
+    tile('DALYs averted per year', fmtNum(health.dalys, 0), `range ${fmtNum(health.lo, 0)} to ${fmtNum(health.hi, 0)}` + (hp.stunting ? '' : ' · stunting excluded') + (hp.exclude_low ? ' · low-confidence excluded' : ''), 'hl'),
     tile('Iron inadequacy', fmtNum(n.iron_inad_pct, 1) + '%', `${pp(n.iron_inad_change_pp)} vs before` + (diff ? ` · ${vsRep('iron_inad_pct', 1)}%` : '')),
     tile('Zinc inadequacy', fmtNum(n.zinc_inad_pct, 1) + '%', `${pp(n.zinc_inad_change_pp)} vs before` + (diff ? ` · ${vsRep('zinc_inad_pct', 1)}%` : '')),
     tile('Protein inadequacy', fmtNum(n.protein_inad_pct, 1) + '%', `${pp(n.protein_inad_change_pp)} vs before` + (diff ? ` · ${vsRep('protein_inad_pct', 1)}%` : '')),
@@ -188,20 +188,23 @@ const NUT_NAME = { ...Object.fromEntries(BOOSTS.map(x => [x.id, x.label])), stun
 NUT_COLOR.stunt = '#2e7d4f';
 function renderHealth(el, res, b, hp, onHealth) {
   const out = healthOutcomes(res, b, hp);
-  const fmtV = v => v >= 100 ? fmtNum(v, 0) : fmtNum(v, 1);
-  const row = r => h('tr', { class: r.speculative ? 'spec' + (r.included ? '' : ' off') : '' },
+  const fmtV = v => Math.abs(v) >= 100 ? fmtNum(v, 0) : fmtNum(v, 1);
+  const fmtD = v => Math.abs(v) >= 10 ? fmtNum(v, 0) : fmtNum(v, 1);
+  const row = r => h('tr', { class: (r.conf === 'low' ? 'spec' : '') + (r.included ? '' : ' off') },
     h('td', {}, h('span', { class: 'dot', style: { background: NUT_COLOR[r.nutrient] } }), r.outcome, h('div', { class: 'how' }, r.how)),
     h('td', { class: 'num' }, NUT_NAME[r.nutrient]),
     h('td', { class: 'num' }, fmtV(r.value)),
-    h('td', { class: 'num' }, r.speculative && !r.included ? h('span', { class: 'muted' }, 'not counted') : fmtNum(r.dalys, r.dalys < 10 ? 1 : 0)),
+    h('td', { class: 'num' }, r.included ? fmtD(r.dalys) : h('span', { class: 'muted' }, 'excluded')),
+    h('td', { class: 'num rng' }, `${fmtD(r.lo)} to ${fmtD(r.hi)}`),
     h('td', {}, h('span', { class: 'conf conf-' + r.conf }, r.conf)));
-  const main = out.rows.filter(r => !r.speculative), spec = out.rows.filter(r => r.speculative);
+  const order = { moderate: 0, high: 0, low: 1 };
+  const rows = out.rows.slice().sort((a, c) => order[a.conf] - order[c.conf] || c.dalys - a.dalys);
   const table = h('div', { class: 'table-wrap' }, h('table', { class: 'dt health' },
-    h('thead', {}, h('tr', {}, h('th', {}, 'Outcome averted'), h('th', { class: 'num' }, 'Nutrient'), h('th', { class: 'num' }, 'Cases / yr'), h('th', { class: 'num' }, 'DALYs / yr'), h('th', {}, 'Evidence'))),
-    h('tbody', {}, ...main.map(row),
-      h('tr', { class: 'sep' }, h('td', { colspan: 5 }, 'Low-confidence pathways (counted only when ticked below)')),
-      ...spec.map(row),
-      h('tr', { class: 'total' }, h('td', {}, 'Total DALYs averted per year'), h('td'), h('td'), h('td', { class: 'num' }, fmtNum(out.dalys, 0)), h('td')))));
+    h('thead', {}, h('tr', {}, h('th', {}, 'Outcome averted'), h('th', { class: 'num' }, 'Nutrient'), h('th', { class: 'num' }, 'Cases / yr', h('div', { class: 'how' }, 'or children helped')),
+      h('th', { class: 'num' }, 'DALYs / yr'), h('th', { class: 'num' }, 'Plausible range'), h('th', {}, 'Evidence'))),
+    h('tbody', {}, ...rows.map(row),
+      h('tr', { class: 'total' }, h('td', {}, 'Total DALYs averted per year'), h('td'), h('td'), h('td', { class: 'num' }, fmtNum(out.dalys, 0)),
+        h('td', { class: 'num rng' }, `${fmtNum(out.lo, 0)} to ${fmtNum(out.hi, 0)}`), h('td')))));
   const set = patch => onHealth && onHealth({ ...hp, ...patch });
   const sel = h('select', { id: 'hp-anemia' }, [['sivesnu', 'SIVESNU 2018/19: 6.1% (venous blood)'], ['ensmi', 'ENSMI 2014/15: 32.4% (capillary blood)']]
     .map(([v, l]) => h('option', { value: v, selected: hp.anemia_baseline === v ? true : null }, l)));
@@ -212,21 +215,19 @@ function renderHealth(el, res, b, hp, onHealth) {
   disc.addEventListener('change', () => set({ zinc_food_discount: +disc.value }));
   const fol = h('input', { id: 'hp-fol', type: 'number', min: 2, max: 40, step: 1, value: hp.serum_folate0 });
   fol.addEventListener('change', () => { const v = +fol.value; if (Number.isFinite(v)) set({ serum_folate0: Math.min(40, Math.max(2, v)) }); });
-  const mort = h('input', { id: 'hp-mort', type: 'checkbox', checked: hp.mortality ? true : null });
-  mort.addEventListener('change', () => set({ mortality: mort.checked }));
-  const stu = h('input', { id: 'hp-stunt', type: 'checkbox', checked: hp.stunting_dalys ? true : null });
-  stu.addEventListener('change', () => set({ stunting_dalys: stu.checked }));
+  const exl = h('input', { id: 'hp-exl', type: 'checkbox', checked: hp.exclude_low ? true : null });
+  exl.addEventListener('change', () => set({ exclude_low: exl.checked }));
+  const stu = h('input', { id: 'hp-stunt', type: 'checkbox', checked: hp.stunting ? true : null });
+  stu.addEventListener('change', () => set({ stunting: stu.checked }));
   const controls = h('div', { class: 'hp-controls' },
     h('label', {}, h('span', {}, 'Child anemia baseline'), sel),
     h('label', {}, h('span', {}, 'Zinc: share of the trial effect a food keeps ', discV), disc),
     h('label', {}, h('span', {}, "Women's baseline serum folate (ng/mL)"), fol),
-    h('label', { class: 'chk' }, mort, h('span', {}, 'Count child deaths and other low-confidence pathways in the total')),
-    h('label', { class: 'chk' }, stu, h('span', {}, 'Count stunting, through its link to child deaths')));
+    h('label', { class: 'chk' }, stu, h('span', {}, 'Count stunting, through its link to child deaths')),
+    h('label', { class: 'chk' }, exl, h('span', {}, 'Exclude low-confidence rows from the total')));
   const notes = h('div', { class: 'note info' },
-    hp.stunting_dalys
-      ? 'Stunting is counted through its link to child deaths, a low-confidence estimate that dominates the total when ticked. '
-      : 'Stunting averted, the model’s main result, is not in this total: GBD gives stunting no disability weight of its own. Tick “Count stunting” to add it through its link to child deaths. ',
-    'A cost per DALY is deliberately not shown: New Seed’s subsidy also pays for yield, income and stunting gains that DALYs leave out.',
-    b.fol ? '' : ' Move the Folate slider to see neural tube defects averted.');
+    'Every row is a central estimate: as likely too high as too low. Low-confidence rows rest on generic evidence (a shortfall common in poor populations plus a trial elsewhere), not Guatemalan data. ',
+    'The range assumes everything lands at its low or high end at once; a negative low end means the evidence allows harm. ',
+    'No cost per DALY: New Seed’s subsidy also pays for yield and income gains.');
   el.replaceChildren(table, controls, notes);
 }
