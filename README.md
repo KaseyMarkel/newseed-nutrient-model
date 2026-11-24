@@ -50,6 +50,18 @@ negative). Low-confidence rows count by default ("exclude" checkbox). Stunting c
 excess risk halved for confounding. Cognition → DALYs at 0.002 per IQ point per child-year (derived).
 Check: `node tools/test_each_nutrient.mjs` (lists any slider that leaves DALYs unchanged).
 
+## Global nutrient model (site/global.html)
+Browser port of New Seed's "Gene_editing_mainstreaming_BOTEC v1.4" (Google Sheet, pulled 2026-11-23): 75 countries ×
+maize/rice/wheat × 2030–2050, approval tiers, variety replacement, zinc/iron/protein/stunting/fiber, attribution,
+discounting, value, costs. Engine: site/js/global_engine.js; data: site/data/global.json, built by
+global/build/build_data.py from the sheet extraction (global/inputs, tools/fixtures/SPEC.md) and Passarelli 2024.
+Parity: `node tools/test_global.mjs tools/fixtures tools/fixtures/checks.json` (Median vs the sheet's own rows and
+$/DALY; Pessimistic/Optimistic vs the Python reference in tools/fixtures; ~1e-10).
+Extensions (off by default, so presets still equal the sheet): 13 extra nutrients (site/js/global_nutrients.js;
+Passarelli country inadequacy × GBD-burden-per-case or speculative priors, with ranges and edit-route flags),
+phytate cut as a Zn/Fe absorption lever, zinc burden anchor (WHO 2002 sheet / GBD 2017 / GBD 2019), crop toggles,
+a fix for the sheet's fiber-gap quirk (Q2).
+
 ## Hosting
 GitHub Pages via `.github/workflows/pages.yml` (publishes `site/` on every push to main):
 https://kaseymarkel.com/newseed-nutrient-model/ . Pages carry `noindex`.

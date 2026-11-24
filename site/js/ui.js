@@ -50,6 +50,7 @@ export function icon(name, cls = 'ic') {
 
 // Azahar's dashboard structure (the main navigation) and the extra tools (one small menu).
 export const DASH_NAV = [
+  { group: 'Global model', href: 'global.html', id: 'global' },
   { group: 'Nutrient Boosts', page: 'nutrients' },
   { group: 'Nutrition', items: [['stunting', 'Stunting'], ['iron', 'Iron'], ['zinc', 'Zinc'], ['protein', 'Protein'], ['energy', 'Energy'], ['consumption', 'Consumption']] },
   { group: 'Economics', items: [['production', 'Production']] },
@@ -81,8 +82,9 @@ function dropdown(label, items, active, extraClass = '') {
 
 // activeId: an Explorer page id ('stunting', ..., 'methodology') or a tool id ('lab', ...).
 export function renderHeader(activeId) {
-  const onExplorer = !TOOLS.some(t => t.id === activeId);
+  const onExplorer = !TOOLS.some(t => t.id === activeId) && activeId !== 'global';
   const nav = h('nav', { class: 'page-nav', 'aria-label': 'Dashboard pages' }, DASH_NAV.map(g => {
+    if (g.href) return h('a', { href: g.href, class: 'nav-link' + (activeId === g.id ? ' active' : '') }, g.group);
     if (g.page) return h('a', { href: 'index.html#' + g.page, class: 'nav-link' + (activeId === g.page ? ' active' : '') }, g.group);
     const act = g.items.some(([id]) => id === activeId);
     return dropdown(g.group, g.items.map(([id, label]) => h('a', { href: 'index.html#' + id, class: id === activeId ? 'active' : '' }, label)), act);
@@ -93,7 +95,7 @@ export function renderHeader(activeId) {
     h('div', { class: 'bar' },
       h('a', { class: 'brand', href: 'index.html' },
         h('span', { class: 'logo', html: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 21c-5 0-8-3-8-8 5 0 8 3 8 8zM12 21c5 0 8-3 8-8-5 0-8 3-8 8zM12 21V9M9 6a3 3 0 016 0c0 2-3 3-3 3s-3-1-3-3z"/></svg>New Seed' }),
-        h('span', { class: 'title' }, 'Guatemala model · nutrient boosts')),
+        h('span', { class: 'title' }, activeId === 'global' ? 'Global nutrient model' : 'Guatemala model · nutrient boosts')),
       nav, tools));
   return header;
 }

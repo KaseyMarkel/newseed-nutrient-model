@@ -1,0 +1,226 @@
+country,crop,vr_row,colZ_max_cg_pct_ha,colAA_annual_pct_per_yr,colAB_confidence,colAC_source
+Angola,maize,5,10.8,1.08,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Burkina Faso,maize,6,13,1.3,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Cameroon,maize,7,14.3,1.43,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Côte d'Ivoire,maize,8,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Eswatini,maize,9,18,1.8,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Ethiopia,maize,10,25.2,2.52,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Ghana,maize,11,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Guinea,maize,12,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Guinea-Bissau,maize,13,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Kenya,maize,14,16.8,1.68,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Lesotho,maize,15,4.9,0.49,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Madagascar,maize,16,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Malawi,maize,17,24,2.4,Low-Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Mozambique,maize,18,9,0.9,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Nigeria,maize,19,17.5,1.75,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Rwanda,maize,20,27,2.7,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Senegal,maize,21,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Sierra Leone,maize,22,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+South Africa,maize,23,10.5,1.05,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Tanzania,maize,24,16.8,1.68,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Uganda,maize,25,34.8,3.48,High,Variety_Replacement_Maize_Rice_Wheat_V6
+Zambia,maize,26,25.8,2.58,High,Variety_Replacement_Maize_Rice_Wheat_V6
+Zimbabwe,maize,27,27.8,2.78,Med-High,Variety_Replacement_Maize_Rice_Wheat_V6
+Egypt,maize,28,22.8,2.28,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Iran,maize,29,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Iraq,maize,30,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mauritania,maize,31,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Morocco,maize,32,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Syria,maize,33,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Turkey,maize,34,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Argentina,maize,35,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Belize,maize,36,11.2,1.12,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Bolivia,maize,37,11.7,1.17,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Brazil,maize,38,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Dominican Republic,maize,39,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ecuador,maize,40,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+El Salvador,maize,41,21,2.1,Low-Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Guatemala,maize,42,9.9,0.99,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Honduras,maize,43,9.9,0.99,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Mexico,maize,44,15,1.5,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Nicaragua,maize,45,8.1,0.81,Very low,Variety_Replacement_Maize_Rice_Wheat_V6
+Paraguay,maize,46,39,3.9,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Peru,maize,47,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Suriname,maize,48,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Venezuela,maize,49,17.4,1.74,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Afghanistan,maize,50,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Bangladesh,maize,51,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+India,maize,52,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Nepal,maize,53,25.6,2.56,Med,Variety_Replacement_Maize_Rice_Wheat_V6
+Pakistan,maize,54,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Sri Lanka,maize,55,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Cambodia,maize,56,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Indonesia,maize,57,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Lao PDR,maize,58,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Malaysia,maize,59,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Myanmar,maize,60,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Philippines,maize,61,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Thailand,maize,62,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Timor-Leste,maize,63,21.2,2.12,Low,Variety_Replacement_Maize_Rice_Wheat_V6
+Vietnam,maize,64,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+China,maize,65,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mongolia,maize,66,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Albania,maize,67,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Azerbaijan,maize,68,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Belarus,maize,69,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Bosnia & Herzegovina,maize,70,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Kazakhstan,maize,71,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Kyrgyzstan,maize,72,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Moldova,maize,73,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+North Macedonia,maize,74,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Serbia,maize,75,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Tajikistan,maize,76,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Turkmenistan,maize,77,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ukraine,maize,78,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Uzbekistan,maize,79,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Angola,rice,85,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Burkina Faso,rice,86,9.8,0.98,Very low,[link to Curt's spreadsheet]
+Cameroon,rice,87,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Côte d'Ivoire,rice,88,13,1.3,Very low,[link to Curt's spreadsheet]
+Eswatini,rice,89,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ethiopia,rice,90,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ghana,rice,91,22.8,2.28,Low,[link to Curt's spreadsheet]
+Guinea,rice,92,13,1.3,Very low,[link to Curt's spreadsheet]
+Guinea-Bissau,rice,93,7.8,0.78,Very low,[link to Curt's spreadsheet]
+Kenya,rice,94,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Lesotho,rice,95,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Madagascar,rice,96,12,1.2,Very low,[link to Curt's spreadsheet]
+Malawi,rice,97,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mozambique,rice,98,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Nigeria,rice,99,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Rwanda,rice,100,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Senegal,rice,101,22.8,2.28,Low,[link to Curt's spreadsheet]
+Sierra Leone,rice,102,7.8,0.78,Very low,[link to Curt's spreadsheet]
+South Africa,rice,103,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Tanzania,rice,104,9.8,0.98,Very low,[link to Curt's spreadsheet]
+Uganda,rice,105,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Zambia,rice,106,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Zimbabwe,rice,107,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Egypt,rice,108,8,0.8,Very low,[link to Curt's spreadsheet]
+Iran,rice,109,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Iraq,rice,110,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mauritania,rice,111,36,3.6,Low,[link to Curt's spreadsheet]
+Morocco,rice,112,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Syria,rice,113,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Turkey,rice,114,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Argentina,rice,115,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Belize,rice,116,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Bolivia,rice,117,32.5,3.25,Low,[link to Curt's spreadsheet]
+Brazil,rice,118,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Dominican Republic,rice,119,33.5,3.35,Low,[link to Curt's spreadsheet]
+Ecuador,rice,120,33.6,3.36,Low,[link to Curt's spreadsheet]
+El Salvador,rice,121,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Guatemala,rice,122,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Honduras,rice,123,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mexico,rice,124,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Nicaragua,rice,125,16.8,1.68,Very low,[link to Curt's spreadsheet]
+Paraguay,rice,126,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Peru,rice,127,33.5,3.35,Low,[link to Curt's spreadsheet]
+Suriname,rice,128,19.2,1.92,Very low,[link to Curt's spreadsheet]
+Venezuela,rice,129,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Afghanistan,rice,130,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Bangladesh,rice,131,19.2,1.92,Med-High,[link to Curt's spreadsheet]
+India,rice,132,19.6,1.96,Med,[link to Curt's spreadsheet]
+Nepal,rice,133,14,1.4,High,[link to Curt's spreadsheet]
+Pakistan,rice,134,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Sri Lanka,rice,135,26.2,2.62,Low-Med,[link to Curt's spreadsheet]
+Cambodia,rice,136,22.5,2.25,Low,[link to Curt's spreadsheet]
+Indonesia,rice,137,39.6,3.96,Med,[link to Curt's spreadsheet]
+Lao PDR,rice,138,12.6,1.26,Very low,[link to Curt's spreadsheet]
+Malaysia,rice,139,35,3.5,Low,[link to Curt's spreadsheet]
+Myanmar,rice,140,30.4,3.04,Very low,[link to Curt's spreadsheet]
+Philippines,rice,141,35,3.5,Low-Med,[link to Curt's spreadsheet]
+Thailand,rice,142,5,0.5,Med,[link to Curt's spreadsheet]
+Timor-Leste,rice,143,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Vietnam,rice,144,28.1,2.81,Med,[link to Curt's spreadsheet]
+China,rice,145,12.9,1.29,Low,[link to Curt's spreadsheet]
+Mongolia,rice,146,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Albania,rice,147,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Azerbaijan,rice,148,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Belarus,rice,149,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Bosnia & Herzegovina,rice,150,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Kazakhstan,rice,151,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Kyrgyzstan,rice,152,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Moldova,rice,153,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+North Macedonia,rice,154,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Serbia,rice,155,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Tajikistan,rice,156,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Turkmenistan,rice,157,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ukraine,rice,158,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Uzbekistan,rice,159,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Angola,wheat,165,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Burkina Faso,wheat,166,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Cameroon,wheat,167,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Côte d'Ivoire,wheat,168,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Eswatini,wheat,169,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ethiopia,wheat,170,46.8,4.68,Med-High,[link to Curt's spreadsheet]
+Ghana,wheat,171,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Guinea,wheat,172,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Guinea-Bissau,wheat,173,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Kenya,wheat,174,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Lesotho,wheat,175,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Madagascar,wheat,176,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Malawi,wheat,177,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mozambique,wheat,178,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Nigeria,wheat,179,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Rwanda,wheat,180,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Senegal,wheat,181,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Sierra Leone,wheat,182,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+South Africa,wheat,183,29.8,2.98,Med-High,[link to Curt's spreadsheet]
+Tanzania,wheat,184,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Uganda,wheat,185,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Zambia,wheat,186,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Zimbabwe,wheat,187,27.8,2.78,Low-Med,[link to Curt's spreadsheet]
+Egypt,wheat,188,31.2,3.12,Med,[link to Curt's spreadsheet]
+Iran,wheat,189,31.2,3.12,Med,[link to Curt's spreadsheet]
+Iraq,wheat,190,19.5,1.95,Low-Med,[link to Curt's spreadsheet]
+Mauritania,wheat,191,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Morocco,wheat,192,27.3,2.73,Low-Med,[link to Curt's spreadsheet]
+Syria,wheat,193,15,1.5,Very low,[link to Curt's spreadsheet]
+Turkey,wheat,194,37.2,3.72,Med-High,[link to Curt's spreadsheet]
+Argentina,wheat,195,21.6,2.16,Low-Med,[link to Curt's spreadsheet]
+Belize,wheat,196,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Bolivia,wheat,197,22.4,2.24,Low,[link to Curt's spreadsheet]
+Brazil,wheat,198,28.8,2.88,Low,[link to Curt's spreadsheet]
+Dominican Republic,wheat,199,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Ecuador,wheat,200,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+El Salvador,wheat,201,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Guatemala,wheat,202,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Honduras,wheat,203,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Mexico,wheat,204,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Nicaragua,wheat,205,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Paraguay,wheat,206,32.4,3.24,Low,[link to Curt's spreadsheet]
+Peru,wheat,207,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Suriname,wheat,208,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Venezuela,wheat,209,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Afghanistan,wheat,210,41.2,4.12,Med,[link to Curt's spreadsheet]
+Bangladesh,wheat,211,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+India,wheat,212,32,3.2,Med-High,[link to Curt's spreadsheet]
+Nepal,wheat,213,40,4,Med-High,[link to Curt's spreadsheet]
+Pakistan,wheat,214,36,3.6,Med,[link to Curt's spreadsheet]
+Sri Lanka,wheat,215,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Cambodia,wheat,216,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Indonesia,wheat,217,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Lao PDR,wheat,218,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Malaysia,wheat,219,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Myanmar,wheat,220,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Philippines,wheat,221,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Thailand,wheat,222,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Timor-Leste,wheat,223,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+Vietnam,wheat,224,,,,No Curt estimate — fallback: 2.5%/yr linear ramp to 50% (≈20-yr ramp)
+China,wheat,225,19,1.9,Low,[link to Curt's spreadsheet]
+Mongolia,wheat,226,6.8,0.68,Very low,[link to Curt's spreadsheet]
+Albania,wheat,227,16.8,1.68,Very low,[link to Curt's spreadsheet]
+Azerbaijan,wheat,228,25.2,2.52,Low-Med,[link to Curt's spreadsheet]
+Belarus,wheat,229,13.6,1.36,Low,[link to Curt's spreadsheet]
+Bosnia & Herzegovina,wheat,230,14.7,1.47,Very low,[link to Curt's spreadsheet]
+Kazakhstan,wheat,231,23.2,2.32,Low-Med,[link to Curt's spreadsheet]
+Kyrgyzstan,wheat,232,33.6,3.36,Low,[link to Curt's spreadsheet]
+Moldova,wheat,233,17.5,1.75,Very low,[link to Curt's spreadsheet]
+North Macedonia,wheat,234,11.8,1.18,Very low,[link to Curt's spreadsheet]
+Serbia,wheat,235,11.2,1.12,Low,[link to Curt's spreadsheet]
+Tajikistan,wheat,236,13.8,1.38,Very low,[link to Curt's spreadsheet]
+Turkmenistan,wheat,237,27.3,2.73,Very low,[link to Curt's spreadsheet]
+Ukraine,wheat,238,13.2,1.32,Low,[link to Curt's spreadsheet]
+Uzbekistan,wheat,239,33.8,3.38,Low-Med,[link to Curt's spreadsheet]
