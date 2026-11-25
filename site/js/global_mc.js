@@ -34,7 +34,15 @@ export const RT_DISTS = [
   ['DALYs per stunting case', 'two-piece lognormal, median 1.5, 5th–95th 0.4–2.8 (disability-only ≈ 0.1–0.25; 2.8 bundles deaths)'],
   ['Zinc burden', 'log-uniform between GBD 2019 (0.26M) and WHO 2002 (28M); median ≈ GBD 2017 (2.7M)'],
   ['Curt ceiling multiplier', 'uniform 1–2'],
-  ['Program cost multiplier', 'uniform 1–2 (partner contracts beyond 2032, more registrations)']
+  ['Program cost multiplier', 'uniform 1–2 (partner contracts beyond 2032, more registrations)'],
+  // v1.6 GiveWell-style adjustments (2026-11-25)
+  ['Replicability of the QPM growth effect', 'uniform 0.1–0.5'],
+  ['Protein DALYs per person-year (over 5 only)', 'uniform 0–0.002'],
+  ['Trait penetration', 'central × uniform 0.5–1.5, one draw for all crops (maize 50%, rice and wheat 65%), capped at 100%'],
+  ['Credit among necessary contributors', 'uniform 0.3–0.7 (replaces the flat 30%, which bundled the counterfactual)'],
+  ['Fiber causal adjustment', 'uniform 0.25–0.75'],
+  ['Conventional biofortification added per year', 'central × uniform 0–2 (zinc 2%, iron 1%, QPM 0.5% per year; ceiling 60%)'],
+  ['Speed-up counterfactual', 'probability uniform 0.3–0.7; delay uniform 3–10 years']
 ];
 
 export function sampleParams(D, P0, r, mode) {
@@ -63,6 +71,13 @@ export function sampleParams(D, P0, r, mode) {
     P.zn_daly = P0.zn_daly_who * Math.exp(Math.log(0.259 / 28) * r()); // log-uniform 0.26M..28M relative to the WHO anchor
     P.zmult = 1 + r();
     P.cost_mult = (P0.cost_mult || 1) * (1 + r());
+    P.growth_rep = 0.1 + 0.4 * r();
+    P.prot_over5 = true; P.prot_daly = 0.002 * r();
+    const pm = 0.5 + r(); P.trait_pen = [0.5, 0.65, 0.65].map(v => Math.min(1, v * pm));
+    P.att = 0.3 + 0.4 * r();
+    P.fib_causal = 0.25 + 0.5 * r();
+    const bgm = 2 * r(); P.base_growth = [0.02 * bgm, 0.01 * bgm, 0.005 * bgm]; P.base_cap = 0.6;
+    P.cf_prob = 0.3 + 0.4 * r(); P.cf_delay = 3 + Math.floor(r() * 8);
   }
   const z0 = gauss(r);
   const ok = p.map(pc => (normCdf(Math.SQRT1_2 * z0 + Math.SQRT1_2 * gauss(r)) < pc ? 1 : 0));

@@ -1,7 +1,7 @@
 // Global nutrient model page: New Seed's gene-editing mainstreaming BOTEC (v1.4) in the browser,
 // with every input as a control, plus extra nutrients (global_nutrients.js).
-import { run, defaults, CROPS } from './global_engine.js';
-import { REDTEAM } from './global_redteam.js';
+import { run, defaults, CROPS, burdenPools } from './global_engine.js';
+import { REDTEAM, GIVEWELL, GBD_CHECK } from './global_redteam.js';
 import { runMC, RT_DISTS } from './global_mc.js';
 import { GLOBAL_EXTRAS, ZINC_ANCHORS } from './global_nutrients.js';
 import { h, renderHeader, renderFooter, card, accordion, setupDrawer, controlsButton } from './ui.js';
@@ -112,11 +112,30 @@ function structureControls(P) {
   ].filter(Boolean);
 }
 
+function givewellControls(P) {
+  const sw = (id, path, label) => { const i = h('input', { type: 'checkbox', id, checked: get(P, path) ? true : null }); i.addEventListener('change', () => setOv(path, i.checked)); return h('label', { class: 'switch' }, i, h('span', {}, label)); };
+  return [
+    h('div', { class: 'boost-gnote' }, 'New in v1.6 (2026-11-25); the sheet presets leave them at no effect. “Red-team central” sets the central values.'),
+    slider(P, 'Replicability of the QPM growth effect', 'growth_rep', 0, 1, 0.05, pct, 'GiveWell-style discount on a small, mostly non-randomized evidence base (Gunaratna 2010) with a null cluster RCT (Donato 2020).'),
+    sw('g-p5', 'prot_over5', 'Protein pathway: count people over 5 only, as the v1.4 label says (its formula uses all ages, so under-5s are counted twice)'),
+    h('div', { class: 'lbl' }, 'Trait penetration (share of new CG-derived area carrying the edits)'),
+    ...CROPS.map((c, i) => slider(P, c[0].toUpperCase() + c.slice(1), 'trait_pen.' + i, 0, 1, 0.05, pct, i === 0 ? 'Sheet: 100%: every CG-derived variety released after approval carries every edit.' : null)),
+    slider(P, 'Fiber: causal adjustment', 'fib_causal', 0, 1, 0.05, pct, 'The fiber RR comes from cohort studies (Threapleton 2013), not trials.'),
+    h('div', { class: 'lbl' }, 'Counterfactual'),
+    h('div', { class: 'boost-hint' }, 'Conventional biofortification added per year without New Seed (share of crop area). CGIAR aims for every new variety to meet minimum nutrient standards within a decade; India requires ≥20 ppm zinc in new rice; most CIMMYT elite wheat lines already carry extra zinc.'),
+    ...[['Zinc', 0], ['Iron', 1], ['Protein quality (QPM)', 2]].map(([l, i]) => slider(P, l, 'base_growth.' + i, 0, 0.05, 0.0025, pct1, null)),
+    slider(P, '…up to', 'base_cap', 0, 1, 0.05, pct, 'Or the 2030 coverage, if higher'),
+    slider(P, 'Speed-up: probability others deliver the edits anyway', 'cf_prob', 0, 1, 0.05, pct, 'Credited DALYs = DALYs − probability × DALYs of the same rollout delayed. 0 = sheet.'),
+    slider(P, '…this many years later', 'cf_delay', 0, 25, 1, v => v + ' y', null),
+    slider(P, 'Credit to New Seed (share among necessary contributors)', 'att', 0, 1, 0.05, pct, 'Sheet: 30%, asserted. With the speed-up counterfactual on, this is New Seed’s share of the inputs that cause the change.')
+  ];
+}
+
 function buildSidebar() {
   const P = params();
   const sc = h('div', { class: 'boost-presets' }, ['Pessimistic', 'Median', 'Optimistic'].map((n, s) =>
     h('button', { class: 'btn small' + (st.s === s && isPristine() ? ' on' : ''), onClick: () => { st = { ...st, s, rt: false, ov: {}, extras: {} }; save(); refresh(); } }, n)),
-    h('button', { class: 'btn small rt' + (st.rt && !Object.keys(st.ov || {}).length ? ' on' : ''), title: 'Sheet Median plus the red-team central adjustments (see “Red-team review”)',
+    h('button', { class: 'btn small rt' + (st.rt && !Object.keys(st.ov || {}).length ? ' on' : ''), title: 'Sheet Median plus the red-team central adjustments, rounds 1 and 2 (see “Red-team review”)',
       onClick: () => { st = { ...st, s: 1, rt: true, ov: {}, extras: {} }; save(); refresh(); } }, 'Red-team central'));
   const nCh = Object.keys(st.ov || {}).length + Object.values(st.extras || {}).filter(v => v > 0).length;
   const status = isPristine()
@@ -147,6 +166,7 @@ function buildSidebar() {
     extras,
     accordion('Red-team levers', 'info', redteamControls(P), !!st.rt),
     accordion('Structure (v1.5)', 'method', structureControls(P), !!(P.pop_growth || P.domestic || P.base_mode === 'country')),
+    accordion('GiveWell-style adjustments (v1.6)', 'info', givewellControls(P), !!st.rt),
     accordion('From boost to health', 'method', [
       slider(P, 'Zinc gap closed per unit boost', 'gap_zn', 0, 1, 0.05, num(2), 'Sheet: 0.5'),
       slider(P, 'Iron gap closed per unit boost', 'gap_fe', 0, 1, 0.05, num(2), 'Sheet: 0.25 (phytate, food matrix)'),
@@ -206,9 +226,12 @@ function buildContent() {
   ui.redteam = h('div', { class: 'card-body' });
   ui.mc = h('div', { class: 'card-body' }); ui.mcPlot = h('div', { class: 'plot' });
   const cMC = card('Uncertainty (live Monte Carlo)', 'chart', [ui.mc, h('div', { class: 'card-body', style: { padding: '6px' } }, ui.mcPlot)], { foot: 'Draws are seeded, so the same settings give the same result. Cost is paid whether or not the edits work, so the expected cost per DALY is expected cost ÷ expected DALYs.' });
-  const cRT = card('Red-team review (three independent reviewers, 2026-11-23)', 'info', ui.redteam);
+  const cRT = card('Red-team review (round 1 2026-11-23, round 2 GiveWell-style 2026-11-25)', 'info', ui.redteam);
+  ui.gw = h('div', { class: 'card-body' }); ui.burden = h('div', { class: 'card-body' });
+  const cGW = card('Against GiveWell’s bar', 'info', ui.gw, { foot: 'A rough translation: GiveWell uses its own moral weights, not DALYs. Inputs and sources in the table.' });
+  const cB = card('Burden sanity check (2030, before any edit)', 'table', ui.burden, { foot: 'What the model puts at stake each year if every at-risk person were reached, vs. GBD’s attributable burden.' });
   const cMeth = card('How the model works', 'method', h('div', { class: 'card-body prose' }, methods()));
-  ui.content.replaceChildren(ui.title, top, h('div', { class: 'two-col' }, cY, cN), cMC, h('div', { class: 'two-col' }, cM, cR), cRT, cT, h('div', { class: 'two-col' }, cC, cMeth));
+  ui.content.replaceChildren(ui.title, top, h('div', { class: 'two-col' }, cY, cN), cMC, h('div', { class: 'two-col' }, cM, cR), h('div', { class: 'two-col' }, cGW, cB), cRT, cT, h('div', { class: 'two-col' }, cC, cMeth));
 }
 
 function methods() {
@@ -273,7 +296,7 @@ function render() {
   // reached
   Plotly.react(ui.reach, [{ type: 'scatter', mode: 'lines', fill: 'tozeroy', x: out.years, y: out.reached.map(r => r.people), line: { color: '#2f5f8f' }, hovertemplate: '%{y:,.0f}<extra></extra>' }],
     { ...lay('People'), showlegend: false }, CFG);
-  renderTable(); renderCompare(P); renderRedteam(); renderMC();
+  renderTable(); renderCompare(P); renderRedteam(); renderMC(); renderGW(P); renderBurden(P);
 }
 
 // ---- Monte Carlo ----
@@ -337,7 +360,7 @@ function renderTable() {
 function renderRedteam() {
   const dirCls = d => (d.startsWith('worse') ? 'conf-low' : d.startsWith('better') ? 'conf-high' : 'conf-moderate');
   const t = h('table', { class: 'dt health rt-findings' },
-    h('thead', {}, h('tr', {}, ['Finding', 'Direction', 'Effect on Median', 'Control here'].map(x => h('th', {}, x)))),
+    h('thead', {}, h('tr', {}, ['Finding', 'Direction', 'Effect', 'Control here'].map(x => h('th', {}, x)))),
     h('tbody', {}, REDTEAM.findings.map(([f, d, e, c]) => h('tr', {}, h('td', {}, f), h('td', {}, h('span', { class: 'conf ' + dirCls(d) }, d)), h('td', { class: 'num' }, e), h('td', {}, c)))));
   const levers = (() => {
     const base = run(D, defaults(D, 1)).totals;
@@ -345,14 +368,43 @@ function renderRedteam() {
       h('tbody', {}, ...REDTEAM.levers.map(l => { const P = defaults(D, 1); l.apply(P, D); const t2 = run(D, P).totals;
         return h('tr', {}, h('td', {}, l.label), h('td', { class: 'num' }, fmtCompact(t2.disc, 2)), h('td', { class: 'num' }, '×' + (t2.disc / base.disc).toFixed(2)), h('td', { class: 'num' }, '$' + t2.per_daly_disc.toFixed(2))); }),
       (() => { const P = defaults(D, 1); for (const l of REDTEAM.levers) l.apply(P, D); const t2 = run(D, P).totals;
-        return h('tr', { class: 'total' }, h('td', {}, 'All together (Red-team central)'), h('td', { class: 'num' }, fmtCompact(t2.disc, 2)), h('td', { class: 'num' }, '×' + (t2.disc / base.disc).toFixed(2)), h('td', { class: 'num' }, '$' + t2.per_daly_disc.toFixed(2))); })()));
+        return h('tr', { class: 'total' }, h('td', {}, 'All together (Red-team central, rounds 1 + 2)'), h('td', { class: 'num' }, fmtCompact(t2.disc, 2)), h('td', { class: 'num' }, '×' + (t2.disc / base.disc).toFixed(2)), h('td', { class: 'num' }, '$' + t2.per_daly_disc.toFixed(2))); })()));
   })();
   const Pa = defaults(D, 1); for (const l of REDTEAM.levers) l.apply(Pa, D); const ra = run(D, Pa).totals;
   const Pb = defaults(D, 1); for (const l of REDTEAM.levers) if (l.id !== 'p_success') l.apply(Pb, D); const rb = run(D, Pb).totals;
+  const P1 = defaults(D, 1); for (const l of REDTEAM.levers) if (!l.round) l.apply(P1, D); const r1 = run(D, P1).totals;
   ui.redteam.replaceChildren(
-    h('p', {}, 'The sheet’s Median reads as a result ', h('b', {}, 'if the research succeeds'), `, with the full maize QPM growth effect applied to every crop. The reviewers’ central adjustments, plus the v1.5 structure (population growth, domestic grain only, baseline by country), bring it from 7.0M DALYs at $8.36 per discounted DALY to ${fmtCompact(ra.total, 2)} expected DALYs (2030–2060) at $${ra.per_daly_disc.toFixed(0)} per discounted DALY ($${rb.per_daly_disc.toFixed(0)} if the edits work).`),
+    h('p', {}, 'The sheet’s Median reads as a result ', h('b', {}, 'if the research succeeds'), `, with the full maize QPM growth effect applied to every crop. Round 1 (three reviewers) plus the v1.5 structure took it from 7.0M DALYs at $8.36 per discounted DALY to ${fmtCompact(r1.total, 2)} expected DALYs (2030–2060) at $${r1.per_daly_disc.toFixed(0)}. Round 2 (GiveWell-style: replicability, unsourced pathways, trait penetration, a counterfactual that grows, speed-up attribution, a go/no-go on costs) gives `,
+      h('b', {}, `${fmtCompact(ra.total, 2)} expected DALYs at $${ra.per_daly_disc.toFixed(0)} per discounted DALY`), ` ($${rb.per_daly_disc.toFixed(0)} if the edits work). That is the “Red-team central” preset.`),
     h('div', { class: 'table-wrap' }, levers), h('div', { class: 'table-wrap' }, t),
     h('p', { class: 'muted' }, 'Claims were fact-checked against primary sources on 2026-11-24 and corrected where needed (Gunaratna 2010 is in Food Policy: +9% height, +12% weight gain; the Ethiopian trial compared QPM growers with and without a consumption package; India’s edited rice seed reaches farmers 2026–27). The uncertainty card above replaces the reviewer’s offline Monte Carlo.'));
+}
+function renderGW(P) {
+  const T = out.totals, G = GIVEWELL;
+  const nt = Object.entries(out.nutTotals).filter(([, v]) => v > 0), ntSum = nt.reduce((s, [, v]) => s + v, 0);
+  const uovD = ntSum > 0 ? nt.reduce((s, [k, v]) => s + v * (G.uov[k] ?? G.uov.extra), 0) / ntSum : G.uov.stunt;
+  const uovPerDollar = T.cost_disc > 0 ? T.disc * uovD / T.cost_disc : 0;
+  const xCash = uovPerDollar / G.gd_uov_per_dollar;
+  const be = T.cost_disc > 0 ? uovD / (G.bar_x * G.gd_uov_per_dollar) : null; // $/disc DALY at the bar
+  const row = (a, b, c) => h('tr', {}, h('td', {}, a), h('td', { class: 'num' }, b), h('td', { class: 'muted small' }, c || ''));
+  ui.gw.replaceChildren(
+    h('div', { class: 'tiles' },
+      tile('Multiple of GiveWell’s benchmark (≈ cash)', T.disc > 0 ? xCash.toFixed(1) + '×' : '–', `GiveWell’s bar: ${G.bar_x}× benchmark`, 'hl'),
+      tile('$/disc. DALY at GiveWell’s bar', be ? '$' + be.toFixed(0) : '–', `this setting: $${T.per_daly_disc ? T.per_daly_disc.toFixed(0) : '–'}`)),
+    h('div', { class: 'table-wrap' }, h('table', { class: 'dt' }, h('tbody', {},
+      row('Units of value per DALY averted (this mix)', uovD.toFixed(2), G.uov_note),
+      row('Benchmark: units of value per $', G.gd_uov_per_dollar.toFixed(5), G.gd_note),
+      row('GiveWell funding bar', G.bar_x + '× benchmark', G.bar_note)))),
+    h('p', { class: 'muted small' }, G.caveat));
+}
+function renderBurden(P) {
+  const b = burdenPools(D, P), G = GBD_CHECK;
+  const rows = [['Stunting (under-5)', b.st, G.st], ['Zinc deficiency', b.zn, G.zn], ['Iron deficiency', b.fe, G.fe], ['Protein quality (pathway)', b.prot, G.prot], ['Low fiber → heart disease', b.fib, G.fib]];
+  ui.burden.replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'dt' },
+    h('thead', {}, h('tr', {}, ['Pathway', 'Model pool, DALYs/yr', 'GBD (75 countries ≈ global)', 'Ratio'].map(x => h('th', {}, x)))),
+    h('tbody', {}, ...rows.map(([n, m, g]) => h('tr', {}, h('td', {}, n), h('td', { class: 'num' }, fmtCompact(m, 1)), h('td', { class: 'num', title: g.src }, g.v ? fmtCompact(g.v, 1) : '–'),
+      h('td', { class: 'num' }, g.v ? '×' + (m / g.v).toFixed(1) : '–')))))),
+    h('p', { class: 'muted small' }, G.note));
 }
 function renderCompare(P) {
   const rows = [0, 1, 2].map(s => ({ s, r: run(D, defaults(D, s)).totals }));

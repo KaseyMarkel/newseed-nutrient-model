@@ -89,3 +89,19 @@ https://kaseymarkel.com/newseed-nutrient-model/ . Pages carry `noindex`.
 records derived from ENCOVI 2023 and SIVESNU 2018, no identifiers). Azahar's public repo
 ships code only and does not distribute these files; they are public here by choice,
 as they already are on the replica.
+
+## v1.6: GiveWell-style red-team, round 2 (2026-11-25)
+New engine levers (defaults reproduce the sheet; all on in "Red-team central"): `growth_rep` (replicability of the QPM
+growth effect, 0.35), `prot_over5` + `prot_daly` 0.001 (the sheet labels the protein pathway "age > 5" but uses all ages;
+0.01 is unsourced), `trait_pen` (share of new CG-derived area carrying the edits: 0.6/0.7/0.7), `fib_causal` (0.5),
+`base_growth` [zinc, iron, QPM] per year with `base_cap` (conventional biofortification keeps spreading: 2%/1%/0.5%, cap 60%),
+`cf_prob`/`cf_delay` (speed-up counterfactual: credited = DALYs − q × DALYs of the same rollout `delay` years later; every
+pathway is linear in variety replacement, so this is exact) with `att` reinterpreted as share among necessary contributors (0.5),
+and `cost_gate` (go/no-go year 2031: later costs × P(some crop works)).
+Page: GiveWell card (units of value by pathway from GiveWell's moral weights; 6× bar) and a burden check against GBD
+(`burdenPools` in the engine). Monte Carlo samples the new levers. Scripts: `node tools/redteam_round2.mjs` (each lever alone),
+`node tools/gw_compare.mjs 2000` (GiveWell multiples, deterministic + MC), `node tools/sheet_check_values.mjs` (values the sheet
+mirror should show). Sheet: "Gene_editing_mainstreaming_BOTEC v1.6" (same file ID), Inputs rows 72-86, Results rows 43-60;
+generator `tools/sheet_v15_gen.py` + `tools/v16_values.json`.
+Headline: Red-team central 0.30M expected DALYs, $234/discounted DALY ($102 if the edits work); ≈2.4× GiveWell's benchmark
+(5.5× if the edits work) vs a 6× bar; MC EV ≈ $290 (≈1.9×), P(zero) 35%, P(clears bar) 5%.

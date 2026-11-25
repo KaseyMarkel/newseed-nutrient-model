@@ -87,7 +87,17 @@ export function defaults(D, s = 1) {
     pop_growth: false,            // UN WPP 2024 medium variant by year (all ages, under-5, women 15–49) instead of 2030 held fixed
     domestic: false,              // credit only grain grown in-country (FAOSTAT domestic food share; imports go to feed first)
     base_mode: 'flat',            // 'flat' = base_cov everywhere (sheet); 'country' = max(base_floor, known programs by country/crop/trait)
-    base_floor: 0.02              // counterfactual biofortification where no program is known ('country' mode; research 2026-11-24: 2%, range 0.5–5%)
+    base_floor: 0.02,             // counterfactual biofortification where no program is known ('country' mode; research 2026-11-24: 2%, range 0.5–5%)
+    // ---- v1.6 GiveWell-style adjustments (2026-11-25). Defaults reproduce the sheet exactly. ----
+    growth_rep: 1,                // replicability / internal-validity adjustment on the QPM growth effect (GiveWell-style)
+    prot_over5: false,            // protein all-ages pathway counts people over 5 only (under-5s are in the stunting pathway)
+    trait_pen: [1, 1, 1],         // share of new CG-derived variety area that carries the edits (maize / rice / wheat)
+    fib_causal: 1,                // causal adjustment on the cohort-based fiber→heart-disease RR
+    base_growth: [0, 0, 0],       // counterfactual conventional biofortification by trait [zinc, iron, protein]: coverage added per year (share of area)
+    base_cap: 0.6,                // ...up to this coverage (or the 2030 coverage if already higher)
+    cf_prob: 0,                   // speed-up counterfactual: probability someone else delivers the same edits anyway...
+    cf_delay: 0,                  // ...this many years later. Credited DALYs(y) = DALYs(y) − cf_prob × DALYs of the delayed rollout(y)
+    cost_gate: null               // go/no-go year: from this year on, costs are paid only if at least one crop's edits work (null = sheet: always paid)
   };
 }
 export const yearsTo = h => Array.from({ length: Math.max(1, h - 2029) }, (_, k) => 2030 + k);
@@ -117,14 +127,18 @@ export function run(D, P) {
   const effZn = bZn * P.gap_zn * P.lab_field, effFe = bFe * P.gap_fe * P.lab_field, effP = P.prot_boost * P.gap_prot * P.lab_field;
   const gap = 1 - P.base_cov;
   // v1.5: per country-crop gaps for the zinc, iron and protein pathways; population factor by year; domestic share
-  const gapOf = (c, ci, t) => P.base_mode === 'country' ? 1 - Math.max(P.base_floor, (c.base && c.base[ci] && c.base[ci][t]) || 0) : gap;
-  const gap0 = P.base_mode === 'country' ? 1 - P.base_floor : gap;
+  const bg = Array.isArray(P.base_growth) ? P.base_growth : [0, 0, 0], bcap = P.base_cap ?? 0.6, TI = { zn: 0, fe: 1, prot: 2 };
+  // v1.6: conventional biofortification keeps spreading (per trait), so the gap the edits can close shrinks over time
+  const grow = (cov, g, k) => (g ? Math.min(Math.max(cov, bcap), cov + g * k) : cov);
+  const covOf = (c, ci, t) => P.base_mode === 'country' ? Math.max(P.base_floor, (c.base && c.base[ci] && c.base[ci][t]) || 0) : P.base_cov;
+  const gapOf = (c, ci, t, k) => 1 - grow(covOf(c, ci, t), bg[TI[t]], k);
+  const gap0Of = () => 1 - (P.base_mode === 'country' ? P.base_floor : P.base_cov); // extra nutrients: no conventional program assumed
   const popF = (c, grp, k) => (P.pop_growth && c.popg ? c.popg[grp][Math.min(k, c.popg[grp].length - 1)] : 1);
   const domOf = (c, ci) => (P.domestic && c.dfs ? c.dfs[ci] : 1);
   const kt = katie(D, P);
   // stunting growth effect per crop: dose (edit size vs QPM) × transferability of the maize QPM evidence
   const dose = P.qpm_ref ? Math.min(1, P.prot_boost * P.lab_field / P.qpm_ref) : 1;
-  const gC = [0, 1, 2].map(ci => P.growth * dose * (P.qpm_transfer ? P.qpm_transfer[ci] : 1));
+  const gC = [0, 1, 2].map(ci => P.growth * dose * (P.growth_rep ?? 1) * (P.qpm_transfer ? P.qpm_transfer[ci] : 1));
   const ktC = gC.map(g => (g === P.growth ? kt : katie(D, P, g)));
   const pS = P.p_success || [1, 1, 1], lag = P.crop_lag || [0, 0, 0];
   const fibGap = P.fixes.fiber_gap ? 1 - P.fib_adequate : 1 - D.scalars.fib_gap_cell; // Q2
@@ -141,13 +155,19 @@ export function run(D, P) {
     const paf0 = (rr0 - 1) / rr0, paf1 = (rr1 - 1) / rr1;
     return rate * (paf0 <= 0 ? 0 : (paf0 - paf1) / paf0) * P.fib_ax;
   });
+  const pen = P.trait_pen || [1, 1, 1];
   const vrOf = (ci, i, y) => {
     const A = approval[i] + (approval[i] < 2100 ? lag[ci] : 0); if (y < A || (P.crops && !P.crops[ci])) return 0;
     const n = y - A + 1, cu = D.countries[i].curt[ci];
     const v = cu ? Math.min(P.ceil, P.zmult * cu[0] / 100, (cu[1] / 100) * P.speed * n) : Math.min(P.ceil, (P.ceil / P.yrs) * P.speed * n);
-    return v * P.skew;
+    return v * P.skew * pen[ci];
   };
-  const VR = YEARS.map(y => [0, 1, 2].map(ci => D.countries.map((_, i) => vrOf(ci, i, y))));
+  // v1.6 speed-up counterfactual: every pathway is linear in VR, so the credited rollout is VR(y) − q·VR(y − delay)
+  // (the delayed world approves each country `delay` years later; year-indexed factors stay on calendar years)
+  const cfq = P.cf_prob || 0, cfd = P.cf_delay || 0;
+  const vrNet = (ci, i, y) => vrOf(ci, i, y) - (cfq ? cfq * (approval[i] < 2100 ? vrOf(ci, i, y - cfd) : 0) : 0);
+  const VRg = YEARS.map(y => [0, 1, 2].map(ci => D.countries.map((_, i) => vrOf(ci, i, y))));
+  const VR = cfq ? YEARS.map(y => [0, 1, 2].map(ci => D.countries.map((_, i) => vrNet(ci, i, y)))) : VRg;
   YEARS.forEach((y, k) => {
     const secS = Math.pow(1 - P.sec_stunt, k), secM = Math.pow(1 - P.sec_micro, k);
     for (let i = 0; i < N; i++) {
@@ -156,13 +176,13 @@ export function run(D, P) {
       let reach = 0;
       for (let ci = 0; ci < 3; ci++) {
         const vr = VR[k][ci][i] * domOf(c, ci); if (!vr) continue;
-        const sh = c.share[ci], base = vr * gap0;
-        const bZ = vr * gapOf(c, ci, 'zn'), bF = vr * gapOf(c, ci, 'fe'), bP = vr * gapOf(c, ci, 'prot');
-        reach += sh * vr;
+        const sh = c.share[ci], base = vr * gap0Of(k);
+        const bZ = vr * gapOf(c, ci, 'zn', k), bF = vr * gapOf(c, ci, 'fe', k), bP = vr * gapOf(c, ci, 'prot', k);
+        reach += sh * VRg[k][ci][i] * domOf(c, ci);
         const add = (key, v0) => { const v = v0 * pS[ci]; if (!v) return; crop[k][ci] += v; byNut[k][key] += v; country[i].crop[ci] += v; country[i].nut[key] += v; country[i].total += v; };
         const zn = P.nutrients.zn ? secM * pop * sh * c.zn * P.zn_daly * effZn * P.ret_zn[ci] * bZ : 0;
         const fe = P.nutrients.fe ? secM * pop * sh * c.fe * P.fe_daly * effFe * P.ret_fe[ci] * bF : 0;
-        const pw = P.nutrients.prot ? secS * pop * sh * c.stunt * P.prot_daly * effP * bP : 0;
+        const pw = P.nutrients.prot ? secS * (P.prot_over5 ? pop - pop5 : pop) * sh * c.stunt * P.prot_daly * effP * bP : 0;
         const st = P.nutrients.stunt ? secS * pop5 * sh * c.stunt * P.stunt_inc * P.stunt_daly * (P.stunting_method === 'haz' ? ktC[ci][i].W : gC[ci]) * bP : 0;
         add('zn', zn); add('fe', fe); add('prot', pw); add('stunt', st);
         sums.zn += zn * pS[ci]; sums.fe += fe * pS[ci]; sums.prot += pw * pS[ci];
@@ -172,9 +192,9 @@ export function run(D, P) {
           const grp = x.group === 'u5' ? pop5 : x.group === 'w' ? (P.pop_growth && c.wshare ? popW * c.wshare : pop * (x.wshare || 0.25)) : pop;
           add(id, secM * grp * sh * pv * x.daly * (x.fort ?? 1) * (x.boost * x.gap * P.lab_field) * (x.ret ? x.ret[ci] : 1) * base);
         }
-        if (ci === 2 && P.nutrients.fiber) add('fiber', pop * fib[i] * vr * fibGap);
+        if (ci === 2 && P.nutrients.fiber) add('fiber', pop * fib[i] * vr * fibGap * (P.fib_causal ?? 1));
       }
-      reached[k] += pop * gap0 * reach;
+      reached[k] += pop * gap0Of(k) * reach;
       // cross-crop cap (Q10): combined gap closure > 1 is capped
       const g = c.share[0] * VR[k][0][i] * domOf(c, 0) + c.share[1] * VR[k][1][i] * domOf(c, 1) + c.share[2] * VR[k][2][i] * domOf(c, 2);
       for (const [key, eff] of [['zn', effZn], ['fe', effFe], ['prot', effP]]) {
@@ -197,7 +217,10 @@ export function run(D, P) {
   totals.value_disc = sum(r => (r.maize * vpd[0] + r.rice * vpd[1] + r.wheat * vpd[2]) * r.df);
   // costs 2026..horizon: the sheet's grid, held at the 2050 rate beyond 2050; advocacy ($1M/yr from 2028) optional
   const cy = Array.from({ length: Math.max(25, (P.horizon || 2050) - 2025) }, (_, j) => 2026 + j);
-  const cyc = cy.map((y, j) => (j < D.costs.total.length ? D.costs.total[j] : D.costs.total[D.costs.total.length - 1]) - (P.advocacy === false && y >= 2028 ? 1e6 : 0));
+  // v1.6: after the go/no-go year costs continue only if some crop's edits work: P(any) = 1 − Π(1 − p) (independence; exact for 0/1 draws)
+  const pAny = 1 - pS.reduce((a, p) => a * (1 - p), 1);
+  const gateF = y => (P.cost_gate && y >= P.cost_gate ? pAny : 1);
+  const cyc = cy.map((y, j) => ((j < D.costs.total.length ? D.costs.total[j] : D.costs.total[D.costs.total.length - 1]) - (P.advocacy === false && y >= 2028 ? 1e6 : 0)) * gateF(y));
   const cost = cyc.reduce((s, v) => s + v, 0) * P.cost_mult + D.costs.extra_2027_29 * P.cost_mult;
   const costDisc = cyc.reduce((s, v, j) => s + v / Math.pow(1 + P.disc, j), 0) * P.cost_mult + D.costs.extra_2027_29 * P.cost_mult / Math.pow(1 + P.disc, 1.5);
   totals.cost = cost; totals.cost_disc = costDisc;
@@ -208,4 +231,18 @@ export function run(D, P) {
     country: country.map((c, i) => ({ ...c, total: c.total * att, crop: c.crop.map(v => v * att), nut: Object.fromEntries(Object.entries(c.nut).map(([k2, v]) => [k2, v * att])),
       name: D.countries[i].name, iso3: D.countries[i].iso3, approval: approval[i], region: D.countries[i].region })),
     reached: YEARS.map((y, k) => ({ year: y, people: reached[k] })), approval, vpd, katie: kt, keys, years: YEARS, dose, gC };
+}
+
+// v1.6: burden the model puts "at stake" each year in 2030 (every at-risk person, no edit effect, before attribution),
+// to compare with GBD attributable burden for the same 75 countries.
+export function burdenPools(D, P) {
+  let zn = 0, fe = 0, prot = 0, st = 0, fib = 0;
+  for (const c of D.countries) {
+    const p = c.pop * 1e6, p5 = c.pop5 * 1e6;
+    zn += p * c.zn * P.zn_daly; fe += p * c.fe * P.fe_daly;
+    prot += (P.prot_over5 ? p - p5 : p) * c.stunt * P.prot_daly;
+    st += p5 * c.stunt * P.stunt_inc * P.stunt_daly;
+    fib += p * D.fiber_regions[c.region][1];
+  }
+  return { zn, fe, prot, st, fib };
 }

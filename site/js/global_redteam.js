@@ -6,6 +6,27 @@
 import { ZINC_ANCHORS } from './global_nutrients.js';
 const ZN_GBD2017 = ZINC_ANCHORS.find(a => a.id === 'gbd2017').dalys / 28e6; // zinc anchor ratio vs the sheet's WHO 2002 figure
 
+// GiveWell translation (round 2). Units of value (UoV): doubling one person's consumption for a year = 1.
+// GiveWell moral weights (page updated Jul 2025): death at age 1–4 = 127 UoV; a year lived with disability = 2.3 UoV.
+export const GIVEWELL = {
+  uov: { zn: 1.5, fe: 2.3, prot: 2.0, stunt: 1.5, fiber: 1.8, extra: 2.0 },
+  uov_note: 'Per DALY, by pathway: child deaths 127 UoV ÷ ~85 GBD years of life lost ≈ 1.5 (zinc, stunting); disability 2.3 per YLD (iron/anaemia); adult heart disease ≈ 1.8; protein and extras 2.0 (judgment). Weighted by this setting’s pathway mix.',
+  gd_uov_per_dollar: 0.00333,
+  gd_note: 'GiveWell’s legacy cash benchmark (≈ $300 per doubling of one person’s consumption for a year). Since Nov 2025 the benchmark is defined differently; GiveWell says it is similar in value.',
+  bar_x: 6,
+  bar_note: 'GiveWell: “As of May 2026, our bar for funding programs is 6x our benchmark” (8× in Nov 2025, 10× in 2024).',
+  caveat: 'Health only. GiveWell also credits income effects of better child nutrition and less anaemia, which this model omits (upside). Closest comparator: GiveWell’s June 2025 grant to Semilla Nueva carried a rough 3–8× estimate.'
+};
+// GBD burden for the sanity check (global; the 75 modeled countries hold most of it)
+export const GBD_CHECK = {
+  st: { v: 33.0e6, src: 'Stunting ≈ 33M DALYs (GBD 2023 analysis); all child growth failure ≈ 75M (2.6% of DALYs, GBD 2021 risk factors, Lancet 2024)' },
+  zn: { v: 0.26e6, src: 'Zinc deficiency 0.26M DALYs, ages 1–4 (GBD 2019; Hess et al. 2021)' },
+  fe: { v: 33e6, src: 'Dietary iron deficiency ≈ 33M DALYs (GBD 2021: 423.7 per 100k, age-standardized; mostly anaemia YLD)' },
+  prot: { v: null, src: 'GBD has no protein-quality risk factor' },
+  fib: { v: null, src: 'Not checked' },
+  note: 'Stunting at 1.5 DALYs per case (red-team) puts ~38M DALYs a year at stake vs GBD ~33M: consistent. At the sheet’s 2.8 it is ~72M, about twice GBD. Iron matches GBD. Zinc stays ~10× GBD 2019 even on the GBD 2017 anchor. The sheet’s protein pathway puts 14M DALYs a year at stake with no GBD counterpart. GBD figures are rounded; pull exact 75-country counts from the GBD Results Tool before publishing.'
+};
+
 export const REDTEAM = {
   levers: [
     { id: 'p_success', label: 'Probability the edits work: maize 0.5, rice 0.35, wheat 0.35',
@@ -31,7 +52,22 @@ export const REDTEAM = {
     { id: 'domestic', label: 'v1.5: credit only domestically grown grain (FAOSTAT)',
       apply: P => { P.domestic = true; } },
     { id: 'base_country', label: 'v1.5: baseline biofortification by country (2% floor; PAK/IND wheat ~50%)',
-      apply: P => { P.base_mode = 'country'; P.base_floor = 0.02; } }
+      apply: P => { P.base_mode = 'country'; P.base_floor = 0.02; } },
+    // ---- round 2 (2026-11-25): GiveWell-style review ----
+    { id: 'growth_rep', round: 2, label: 'v1.6: replicability 35% on the QPM growth effect',
+      apply: P => { P.growth_rep = 0.35; } },
+    { id: 'prot', round: 2, label: 'v1.6: protein pathway over-5s only, 0.001 DALY/person-year (sheet 0.01, unsourced)',
+      apply: P => { P.prot_over5 = true; P.prot_daly = 0.001; } },
+    { id: 'trait_pen', round: 2, label: 'v1.6: trait penetration maize 60%, rice 70%, wheat 70%',
+      apply: P => { P.trait_pen = [0.6, 0.7, 0.7]; } },
+    { id: 'fib_causal', round: 2, label: 'v1.6: fiber causal adjustment 50% (cohort RR)',
+      apply: P => { P.fib_causal = 0.5; } },
+    { id: 'base_growth', round: 2, label: 'v1.6: conventional biofortification spreads (zinc +2%/yr, iron +1%, QPM +0.5%; ceiling 60%)',
+      apply: P => { P.base_growth = [0.02, 0.01, 0.005]; P.base_cap = 0.6; } },
+    { id: 'speedup', round: 2, label: 'v1.6: speed-up counterfactual (50% chance others deliver 6 y later) × 50% credit, replacing the flat 30%',
+      apply: P => { P.cf_prob = 0.5; P.cf_delay = 6; P.att = 0.5; } },
+    { id: 'cost_gate', round: 2, label: 'v1.6: go/no-go in 2031: later costs only if some crop works',
+      apply: P => { P.cost_gate = 2031; } }
   ],
   // [issue, direction, effect on Median (engine), control on this page]
   findings: [
@@ -52,6 +88,18 @@ export const REDTEAM = {
     ['Protein all-ages pathway (0.01 DALY/yr) is unsourced and overlaps under-5 stunting.', 'worse', '×0.93 if dropped', 'Protein DALYs per person-year'],
     ['Costs stop partner contracts in 2032 (stacking, rice/wheat, 20+ registrations continue); $1.2M for 2027–29 likely double-counted.', 'worse (small)', '$8.36 → ~$9.9', 'Program cost multiplier'],
     ['“People reached” sums calorie shares across crops: it is full-diet equivalents, not a headcount (707M vs the note’s 528M).', 'labeling', '—', '—'],
-    ['The concept note (v1.0: 3.24M DALYs, $19/DALY, 40–66× GiveWell) doesn’t match the v1.4 sheet (7.0M, $8.36). Reconciled: switching the v1.4 Median back to the growth-rate stunting method gives 3.45M and $17.01, so the HAZ-shift method (v1.4) explains ~95% of the gap. The GiveWell rows use hard-coded constants.', 'either', 'rate method: ×0.49', 'Stunting method']
+    ['The concept note (v1.0: 3.24M DALYs, $19/DALY, 40–66× GiveWell) doesn’t match the v1.4 sheet (7.0M, $8.36). Reconciled: switching the v1.4 Median back to the growth-rate stunting method gives 3.45M and $17.01, so the HAZ-shift method (v1.4) explains ~95% of the gap. The GiveWell rows use hard-coded constants.', 'either', 'rate method: ×0.49', 'Stunting method'],
+    // ---- round 2 (2026-11-25, GiveWell-style). Effects are on the round-1 central, each alone. ----
+    ['R2. The QPM growth effect rests on Gunaratna 2010: 9 small studies (48–486 children), only 2 peer-reviewed, 4 from one author, outcome a growth-rate ratio. The only modern trial (Donato 2020) found no growth effect, but it tested a consumption package among QPM growers, not QPM vs conventional maize. At the sheet Median the implied HAZ gain with all three crops edited is +0.08 to +0.22 (India 0.15, Bangladesh 0.22), above SQ-LNS, the best-evidenced food supplement (+0.14 LAZ; Dewey 2021, 14 RCTs). A GiveWell-style replicability adjustment of 35% leaves ≈ +0.03–0.05 at full QPM dose in a maize-dominant diet.', 'worse', '×0.78', 'Replicability of the QPM growth effect'],
+    ['R2. The protein pathway is the sheet’s second-largest after the round-1 fixes (30%) and rests on an unsourced 0.01 DALY per person-year × stunting prevalence. GBD has no protein-quality risk factor, so this puts 14M DALYs a year at stake with no counterpart. The sheet labels it “age > 5” but multiplies by the whole population, so under-5s are counted again on top of stunting.', 'worse', 'over-5 only: ×0.98; and 0.001: ×0.73', 'Protein pathway switch; Protein DALYs per person-year'],
+    ['R2. Every CG-derived variety released after approval is assumed to carry every edit. Opaque2-type lysine traits bring soft endosperm, ear rot and lower yield (modifier genes or zein edits are needed); strong low-phytate alleles hurt germination and yield; high-zinc wheat shows no penalty. Penetration is a central 60% maize, 70% rice and wheat.', 'worse', '×0.68', 'Trait penetration'],
+    ['R2. The counterfactual is static, but conventional biofortification is spreading: CGIAR aims for every new variety to meet minimum nutrient standards within a decade (Nov 2025); India releases no rice below 20 ppm zinc; most CIMMYT elite wheat lines already carry extra zinc; Akbar-19 (zinc) is on ~50% of Pakistan’s wheat. Modeled as coverage rising +2%/yr for zinc, +1% iron, +0.5% QPM, to a 60% ceiling.', 'worse', '×0.89', 'Conventional biofortification added per year'],
+    ['R2. The flat 30% credit is asserted. Made explicit: others deliver the same edits anyway with probability 50%, 6 years later (IRRI OsNAS2 promoter edit; LKR knockout doubles rice lysine; zein edits raise maize lysine without opaque2; CGIAR plans low-phytate and provitamin A edits; no one else is found mainstreaming nutrient edits into CG pipelines), and New Seed gets 50% of what remains, as one of the necessary contributors with CGIAR breeders and national programs. Equivalent to a flat ~36%.', 'better', '×1.20', 'Speed-up; Credit to New Seed'],
+    ['R2. Costs run to 2060 even when every edit fails, though the program would stop. With a 2031 go/no-go, later costs are paid only if some crop works (P ≈ 0.79 under independence; the Monte Carlo uses correlated draws).', 'better ($/DALY)', 'cost ×0.85', 'Go/no-go year'],
+    ['R2. Fiber → heart disease uses a cohort RR (Threapleton 2013), not trial evidence, and benefits accrue over decades. 50% causal adjustment.', 'worse', '×0.92', 'Fiber causal adjustment'],
+    ['R2. Burden check: at 2.8 DALYs per stunting case the model puts ~72M DALYs a year at stake from stunting in 75 countries, about twice GBD’s ~33M; 1.5 per case (round 1) gives ~38M, consistent. Iron (36M vs ~33M) is consistent. Zinc stays ~10× GBD 2019 on the GBD 2017 anchor (the pathway is ~7% of the total, so it matters little).', 'checked', '—', 'Burden sanity check card'],
+    ['R2. Exposure check: stunting is set in the first 1,000 days, when breast milk supplies much of the energy, so a child’s staple share is below the all-ages share used here. But the trial effect is applied at a 100% staple share, while trial children ate maize-dominant diets (~50–70%). The two roughly offset; no change.', 'checked', '—', '—'],
+    ['R2. Not modeled (upside): income gains from better child growth and less anaemia, which GiveWell counts for nutrition programs; benefits after 2060.', 'better', 'not quantified', '—'],
+    ['R2. GiveWell comparison: the concept note’s “40–66× GiveWell” uses hard-coded constants. Translated with GiveWell’s moral weights (death at 1–4 = 127 units of value; 2.3 per year lived with disability) against its benchmark (~0.0033 units per $), the round-2 central is ~2–2.5× the benchmark in expectation and ~5.5× if the edits work, vs a funding bar of 6× (May 2026). GiveWell’s own rough estimate for Semilla Nueva’s maize work was 3–8×.', 'either', '—', 'Against GiveWell’s bar card']
   ]
 };

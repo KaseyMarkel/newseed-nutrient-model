@@ -1,0 +1,16 @@
+{
+ "growth_rep": 0.35,
+ "growth_rep_note": "v1.6. Gunaratna 2010: 9 small studies, 2 peer-reviewed; Donato 2020 cluster RCT null (consumption package). Sheet Median implies HAZ +0.08-0.22, above SQ-LNS +0.14 (Dewey 2021)",
+ "pen0": 0.6, "pen1": 0.7, "pen2": 0.7,
+ "pen_note": "v1.6. Sheet assumes every CG-derived variety carries every edit. Opaque2-type traits: soft endosperm, ear rot, yield drag; strong lpa alleles hurt germination; high-zinc wheat no penalty",
+ "fib_causal": 0.5, "fib_note": "v1.6. Threapleton 2013 is a cohort meta-analysis",
+ "bg_zn": 0.02, "bg_fe": 0.01, "bg_prot": 0.005, "base_cap": 0.6,
+ "base_growth_note": "v1.6. CGIAR: every new variety to meet minimum nutrient standards within a decade (Nov 2025); India: no rice release below 20 ppm Zn; most CIMMYT elite wheat lines carry extra zinc",
+ "cf_prob": 0.5, "cf_delay": 6,
+ "cf_note": "v1.6. Credited = DALYs - prob x DALYs of the same rollout delayed. Others: IRRI OsNAS2 edit, rice LKR knockout, maize zein edits, CGIAR low-phytate plans; no one else found mainstreaming nutrient edits into CG pipelines",
+ "cost_gate": 2031, "cost_gate_note": "v1.6. If every crop fails, the program stops; later costs x P(any crop works)",
+ "bar": 6, "bar_note": "GiveWell: 'As of May 2026, our bar for funding programs is 6x our benchmark' (8x Nov 2025)",
+ "gd": 0.00333, "gd_note": "GiveWell legacy cash benchmark (~$300 per doubling of consumption for a person-year); new benchmark said to be similar",
+ "rt_Protein DALYs per person-year (all ages)": 0.001,
+ "rt_Credit to New Seed (attribution)": 0.5
+}

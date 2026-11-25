@@ -1,4 +1,4 @@
-"""Generate the Google Sheet (BOTEC v1.5-WIP) payloads: one JSON file per write call."""
+"""Generate the Google Sheet (BOTEC v1.6) payloads: one JSON file per write call."""
 import json, os, sys
 O = (sys.argv[1] if len(sys.argv) > 1 else "sheet_payloads") + "/"; os.makedirs(O, exist_ok=True)
 F, T = False, True
@@ -35,13 +35,13 @@ L = [
  ('Fix Q2: use the active fiber-adequate share', F, F, F, T, 'FALSE reproduces v1.4'),
  ('Zinc burden anchor (million DALYs)', 28, 28, 28, 2.58, 'v1.4: WHO 2002 (~800k deaths, 1.9% of DALYs). GBD 2017: 2.58M; GBD 2019: 0.259M (Hess et al. 2021, doi:10.1017/S1368980021004821). Both GBD: ages 1-4 only'),
  ('Iron DALYs per person-year at risk', '=0.025/3', '=0.025/3', '=0.025/3', '=0.025/3', 'v1.4 B29'),
- ('Protein DALYs per person-year (all ages)', .01, .01, .01, .01, 'v1.4 B30 placeholder (unsourced)'),
+ ('Protein DALYs per person-year (all ages)', .01, .01, .01, .01, 'v1.4 B30 placeholder (unsourced; v1.4 labels it age > 5 but uses all ages). GBD has no protein-quality risk factor. Red-team 0.001, over-5s only (row 73)'),
  ('DALYs per stunting case averted', 2.8, 2.8, 2.8, 1.5, 'v1.4 B31. Disability-only estimates are about 0.1-0.25; 2.8 is defensible only if it bundles deaths'),
  ('Stunting incidence conversion', .2, .2, .2, .2, 'v1.4 B37'),
  ('Stunting method', 'HAZ shift', 'HAZ shift', 'HAZ shift', 'HAZ shift', 'HAZ shift or Growth rate (v1.0 concept note used the growth rate)'),
  ('Already biofortified anyway (flat)', .15, .15, .15, .15, 'v1.4 B32. Used when "baseline by country" is FALSE'),
  ('Discount rate', .043, .043, .043, .043, 'v1.4 B33'),
- ('Credit to New Seed (attribution)', .3, .3, .3, .3, 'v1.4 B36'),
+ ('Credit to New Seed (attribution)', .3, .3, .3, .3, 'v1.4 B36 (flat 30%, asserted). Red-team: 50% share among necessary contributors, on top of the speed-up counterfactual (rows 82-83); equivalent to a flat ~36%'),
  ('Value of a DALY (x GDP per capita)', 2.3, 2.3, 2.3, 2.3, 'v1.4 B53'),
  ('Program cost multiplier', 1, 1, 1, 1, 'Applies to the Costs tab'),
  ('Fiber TMREL (g/day)', 23.5, 23.5, 23.5, 23.5, 'v1.4 B64'),
@@ -71,9 +71,29 @@ L = [
  ('Include maize', T, T, T, T, ''),
  ('Include rice', T, T, T, T, ''),
  ('Include wheat', T, T, T, T, ''),
+ # ---- v1.6 GiveWell-style adjustments (rows 72+); Pessimistic/Median/Optimistic reproduce v1.4 ----
+ ('Replicability adjustment on the QPM growth effect', 1, 1, 1, '@growth_rep', '@growth_rep_note'),
+ ('Protein pathway: count people over 5 only', F, F, F, T, 'v1.6. Under-5s are already in the stunting pathway (double count in v1.4)'),
+ ('Trait penetration: maize (share of new CG-derived area carrying the edits)', 1, 1, 1, '@pen0', '@pen_note'),
+ ('Trait penetration: rice', 1, 1, 1, '@pen1', ''),
+ ('Trait penetration: wheat', 1, 1, 1, '@pen2', ''),
+ ('Fiber: causal adjustment on the cohort RR', 1, 1, 1, '@fib_causal', '@fib_note'),
+ ('Conventional biofortification added per year: zinc', 0, 0, 0, '@bg_zn', '@base_growth_note'),
+ ('Conventional biofortification added per year: iron', 0, 0, 0, '@bg_fe', ''),
+ ('Conventional biofortification added per year: protein quality (QPM)', 0, 0, 0, '@bg_prot', ''),
+ ('Conventional biofortification: ceiling', .6, .6, .6, '@base_cap', 'Or the 2030 coverage, if higher'),
+ ('Speed-up: probability others deliver the same edits anyway', 0, 0, 0, '@cf_prob', '@cf_note'),
+ ('Speed-up: years later they would deliver them', 0, 0, 0, '@cf_delay', ''),
+ ('Go/no-go year: later costs paid only if some crop works (0 = always paid)', 0, 0, 0, '@cost_gate', '@cost_gate_note'),
+ ('GiveWell funding bar (x benchmark)', '@bar', '@bar', '@bar', '@bar', '@bar_note'),
+ ('GiveWell benchmark: units of value per $', '@gd', '@gd', '@gd', '@gd', '@gd_note'),
 ]
+import json as _j
+V = _j.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'v16_values.json')))
+L = [tuple(V[x[1:]] if isinstance(x, str) and x.startswith('@') else x for x in row) for row in L]
+L = [tuple((V['rt_' + row[0]] if (j == 4 and ('rt_' + row[0]) in V) else x) for j, x in enumerate(row)) for row in L]
 R0 = 6
-rows = [['Gene_editing_mainstreaming_BOTEC v1.5-WIP: inputs'] + [None] * 7,
+rows = [['Gene_editing_mainstreaming_BOTEC v1.6: inputs'] + [None] * 7,
         ['Pick a scenario in B3. Blue cells are inputs; column F (Custom) falls back to Median where blank; column G is what the model uses.'] + [None] * 7,
         ['Scenario', 'Median', None, None, None, None, None, None],
         [None] * 8,
@@ -84,25 +104,27 @@ for i, (lab, p, m, o, rt, note) in enumerate(L):
 ROW = {lab: R0 + i for i, (lab, *_r) in enumerate(L)}
 def G(lab): return f'Inputs!$G${ROW[lab]}'
 last = R0 + len(L) - 1
-assert last == 71, last
+assert last == 86, last
+ND = last + 2  # derived header row (85)
+DR = {n: ND + 1 + j for j, n in enumerate(['effZn', 'effFe', 'effP', 'recal', 'znDaly', 'dose', 'gM', 'gR', 'gW', 'fibGap', 'pAny'])}
 der = [
  ('Derived (do not edit)', None, None),
  ('Zinc effectiveness', '=((1+G6)*(1+G14*G13)-1)*G9*G12', 'bioavailable boost x gap closed x lab-to-field'),
  ('Iron effectiveness', '=((1+G7)*(1+G15*G13)-1)*G10*G12', ''),
  ('Protein effectiveness', '=G8*G11*G12', ''),
  ('Zinc recalibration (1.5B at risk)', '=MIN(1,1.5E9/SUMPRODUCT(Countries!E5:E79*1E6,Countries!K5:K79))', 'v1.4 B48'),
- ('Zinc DALYs per person-year at risk', '=0.02*G77*G34/28', 'v1.4 B28 = 0.02 x recalibration, scaled by the burden anchor'),
+ ('Zinc DALYs per person-year at risk', f'=0.02*G{DR["recal"]}*G34/28', 'v1.4 B28 = 0.02 x recalibration, scaled by the burden anchor'),
  ('Stunting dose (edit size vs QPM)', '=IF(G55,MIN(1,G8*G12/G56),1)', ''),
- ('Growth effect: maize', '=G26*G79*G57', ''),
- ('Growth effect: rice', '=G26*G79*G58', ''),
- ('Growth effect: wheat', '=G26*G79*G59', ''),
+ ('Growth effect: maize', f'=G26*G{DR["dose"]}*G57*G72', 'x replicability (row 72)'),
+ ('Growth effect: rice', f'=G26*G{DR["dose"]}*G58*G72', ''),
+ ('Growth effect: wheat', f'=G26*G{DR["dose"]}*G59*G72', ''),
  ('Fiber gap (not already adequate)', '=IF(G33,1-G32,1-B32)', 'v1.4 quirk Q2 when G33 is FALSE'),
+ ('P(edits work in at least one crop)', '=1-(1-G52)*(1-G53)*(1-G54)', 'Independence; scales costs after the go/no-go year'),
 ]
 rows.append([None] * 8)
 for lab, f, note in der:
     rows.append([lab, None, None, None, None, None, f, note])
 json.dump({'range': 'Inputs!A1', 'formulas': rows}, open(O + 'inputs.json', 'w'))
-ND = 73  # derived header row
 assert rows[ND - 1][0] == 'Derived (do not edit)'
 # ---------------- Countries derived ----------------
 cd = [['Share maize', 'Share rice', 'Share wheat', 'Approval year', 'Fiber intake x0 (g/day)', 'Fiber-attributable DALYs per capita', 'Fiber DALYs averted per capita at full adoption'],
@@ -127,9 +149,9 @@ hz = {'range': 'Stunting HAZ!A1', 'formulas': [
   ['WHO reference SD (cm)', 2.8, None, None, None, None],
   ['Population HAZ SD (sigma)', 1.2, None, None, None, None],
   [None] * 6,
-  ['dHAZ: maize', '=B3*Inputs!G80*B4/B5', None, None, None, None],
-  ['dHAZ: rice', '=B3*Inputs!G81*B4/B5', None, None, None, None],
-  ['dHAZ: wheat', '=B3*Inputs!G82*B4/B5', None, None, None, None],
+  ['dHAZ: maize', f'=B3*Inputs!G{DR["gM"]}*B4/B5', None, None, None, None],
+  ['dHAZ: rice', f'=B3*Inputs!G{DR["gR"]}*B4/B5', None, None, None, None],
+  ['dHAZ: wheat', f'=B3*Inputs!G{DR["gW"]}*B4/B5', None, None, None, None],
   [None] * 6,
   ['Country', 'Stunting prevalence', 'Mean HAZ (mu)', 'W maize', 'W rice', 'W wheat'],
   ['=Countries!A5:A79', '=Countries!M5:M79', '=ARRAYFORMULA(IF(B13:B87>0,-2-$B$6*NORM.S.INV(B13:B87),0))',
@@ -155,18 +177,24 @@ for ci, crop in enumerate(CR):
     pS = f'Inputs!$G${52 + ci}'
     vr = rng('VR')
     f = {}
+    # v1.6: x trait penetration; speed-up counterfactual subtracts q x the same ramp `delay` years later (n - delay)
     f['VR'] = (f'=ARRAYFORMULA(LET(yr,SEQUENCE(1,31,2030),ap,Countries!$AJ$5:$AJ$79,st,ap+IF(ap<2100,Inputs!$G${60 + ci},0),n,yr-st+1,'
                f'cz,Countries!${Z}$5:${Z}$79,ca,Countries!${AA}$5:${AA}$79,cl,Inputs!$G$21,sp,Inputs!$G$23,zc,Inputs!$G$25*cz/100,'
-               f'lin,IF(cz="",cl/Inputs!$G$22*sp*n,ca/100*sp*n),cp,IF(cz="",cl,IF(cl<zc,cl,zc)),v,IF(lin<cp,lin,cp),'
-               f'IF(n<1,0,v*Inputs!$G$24*Inputs!$G${69 + ci}*IF(Inputs!$G$66,Countries!${dfs}$5:${dfs}$79,1))))')
+               f'cp,IF(cz="",cl,IF(cl<zc,cl,zc)),'
+               f'lin,IF(cz="",cl/Inputs!$G$22*sp*n,ca/100*sp*n),v,IF(n<1,0,IF(lin<cp,lin,cp)),'
+               f'nd,n-Inputs!$G$83,lind,IF(cz="",cl/Inputs!$G$22*sp*nd,ca/100*sp*nd),vd,IF((nd<1)+(ap>=2100),0,IF(lind<cp,lind,cp)),'
+               f'(v-Inputs!$G$82*vd)*Inputs!$G$24*Inputs!$G${74 + ci}*Inputs!$G${69 + ci}*IF(Inputs!$G$66,Countries!${dfs}$5:${dfs}$79,1)))')
     base = f'Countries!$E$5:$E$79*1E6*Population!$Q$5:$AU$79*Countries!${sh}$5:${sh}$79'
-    f['Zn'] = f'=ARRAYFORMULA((1-Inputs!$G$28)^SEQUENCE(1,31,0)*{base}*Countries!$K$5:$K$79*Inputs!$G$78*Inputs!$G$74*Inputs!$G${46 + ci}*{vr}*$B$5:$B$79*{pS})'
-    f['Fe'] = f'=ARRAYFORMULA((1-Inputs!$G$28)^SEQUENCE(1,31,0)*{base}*Countries!$L$5:$L$79*Inputs!$G$35*Inputs!$G$75*Inputs!$G${49 + ci}*{vr}*$C$5:$C$79*{pS})'
-    f['PW'] = f'=ARRAYFORMULA((1-Inputs!$G$27)^SEQUENCE(1,31,0)*{base}*Countries!$M$5:$M$79*Inputs!$G$36*Inputs!$G$76*{vr}*$D$5:$D$79*{pS})'
+    # v1.6: gap left shrinks as conventional biofortification spreads: 1 - MIN(MAX(cov, cap), cov + growth x k)
+    gk = lambda c, t: f'LET(cv,1-{c}$5:{c}$79,raw,cv+Inputs!$G${78 + t}*SEQUENCE(1,31,0),lim,IF(cv>Inputs!$G$81,cv,Inputs!$G$81),1-IF(raw>lim,lim,raw))'
+    popP = f'(Countries!$E$5:$E$79*1E6*Population!$Q$5:$AU$79-IF(Inputs!$G$73,Countries!$F$5:$F$79*1E6*Population!$AW$5:$CA$79,0))*Countries!${sh}$5:${sh}$79'
+    f['Zn'] = f'=ARRAYFORMULA((1-Inputs!$G$28)^SEQUENCE(1,31,0)*{base}*Countries!$K$5:$K$79*Inputs!$G${DR["znDaly"]}*Inputs!$G${DR["effZn"]}*Inputs!$G${46 + ci}*{vr}*{gk("$B", 0)}*{pS})'
+    f['Fe'] = f'=ARRAYFORMULA((1-Inputs!$G$28)^SEQUENCE(1,31,0)*{base}*Countries!$L$5:$L$79*Inputs!$G$35*Inputs!$G${DR["effFe"]}*Inputs!$G${49 + ci}*{vr}*{gk("$C", 1)}*{pS})'
+    f['PW'] = f'=ARRAYFORMULA((1-Inputs!$G$27)^SEQUENCE(1,31,0)*{popP}*Countries!$M$5:$M$79*Inputs!$G$36*Inputs!$G${DR["effP"]}*{vr}*{gk("$D", 2)}*{pS})'
     f['ST'] = (f'=ARRAYFORMULA((1-Inputs!$G$27)^SEQUENCE(1,31,0)*Countries!$F$5:$F$79*1E6*Population!$AW$5:$CA$79*Countries!${sh}$5:${sh}$79'
-               f'*Countries!$M$5:$M$79*Inputs!$G$38*Inputs!$G$37*$E$5:$E$79*{vr}*$D$5:$D$79*{pS})')
+               f'*Countries!$M$5:$M$79*Inputs!$G$38*Inputs!$G$37*$E$5:$E$79*{vr}*{gk("$D", 2)}*{pS})')
     if ci == 2:
-        f['FB'] = f'=ARRAYFORMULA(Countries!$E$5:$E$79*1E6*Population!$Q$5:$AU$79*Countries!$AM$5:$AM$79*{vr}*Inputs!$G$83*{pS})'
+        f['FB'] = f'=ARRAYFORMULA(Countries!$E$5:$E$79*1E6*Population!$Q$5:$AU$79*Countries!$AM$5:$AM$79*{vr}*Inputs!$G${DR["fibGap"]}*Inputs!$G$77*{pS})'
     W = ['D', 'E', 'F'][ci]
     gap = lambda c: f'=ARRAYFORMULA(IF(Inputs!$G$67,1-IF(Countries!{c}5:{c}79>Inputs!$G$68,Countries!{c}5:{c}79,Inputs!$G$68),1-Inputs!$G$40))'
     sumblocks = '+'.join(rng(b) for b in (['Zn', 'Fe', 'PW', 'ST'] + (['FB'] if ci == 2 else [])))
@@ -176,7 +204,7 @@ for ci, crop in enumerate(CR):
     hdr = ['Country', 'Gap left: zinc', 'Gap left: iron', 'Gap left: protein', 'Stunting effect (W or growth)', 'Total DALYs, years counted']
     for j, x in enumerate(hdr): grid[1][j] = x
     grid[2][0] = '=ARRAYFORMULA(Countries!A5:A79)'; grid[2][1] = gap(bz); grid[2][2] = gap(bf); grid[2][3] = gap(bp)
-    grid[2][4] = f'=ARRAYFORMULA(IF(Inputs!$G$39="HAZ shift",\'Stunting HAZ\'!{W}13:{W}87,Inputs!$G${80 + ci}))'
+    grid[2][4] = f'=ARRAYFORMULA(IF(Inputs!$G$39="HAZ shift",\'Stunting HAZ\'!{W}13:{W}87,Inputs!$G${DR["gM"] + ci}))'
     grid[2][5] = f'=ARRAYFORMULA(MMULT({sumblocks},TRANSPOSE(--(SEQUENCE(1,31,2030)<=Inputs!$G$63))))'
     for b in blocks:
         if b == 'FB' and ci != 2: continue
@@ -228,7 +256,7 @@ cr = [['Program costs (v1.4 cost grid totals, $)', None, None, None],
 for j in range(35):
     r = 5 + j
     cr.append([2026 + j if j == 0 else f'=A{r - 1}+1', round(ct[j], 4) if j < 25 else '=$B$29',
-               f'=IF(A{r}<=MAX(2050,Inputs!$G$63),(B{r}-IF(AND(NOT(Inputs!$G$64),A{r}>=2028),1000000,0))*Inputs!$G$44,0)', f'=1/(1+Inputs!$G$41)^(A{r}-2026)'])
+               f'=IF(A{r}<=MAX(2050,Inputs!$G$63),(B{r}-IF(AND(NOT(Inputs!$G$64),A{r}>=2028),1000000,0))*Inputs!$G$44*IF(AND(Inputs!$G$84>0,A{r}>=Inputs!$G$84),Inputs!$G${DR["pAny"]},1),0)', f'=1/(1+Inputs!$G$41)^(A{r}-2026)'])
 cr += [[None] * 4, ['Extra 2027-29 (v1.4 B109)', D['costs']['extra_2027_29'], None, None], [None] * 4,
        ['Total program cost', '=SUM(C5:C39)+B41*Inputs!G44', None, None],
        ['Total program cost, discounted', '=SUMPRODUCT(C5:C39,D5:D39)+B41*Inputs!G44/(1+Inputs!G41)^1.5', None, None]]
@@ -245,3 +273,24 @@ ph = [['Population, UN WPP 2024 medium variant, ratio to 2030 (5-year anchors; t
 json.dump({'range': 'Population!A1', 'formulas': ph}, open(O + 'pop_hdr.json', 'w'))
 for fn in sorted(os.listdir(O)):
     print(fn, os.path.getsize(O + fn))
+
+# ---------------- v1.6: GiveWell comparison and burden check (Results rows 43-60) ----------------
+gw = [['GiveWell comparison (health only; income effects not modeled)', None, None],
+      ['Units of value per DALY: zinc', 1.5, 'Child deaths: 127 UoV (age 1-4, GiveWell moral weights Jul 2025) / ~85 GBD YLL'],
+      ['Units of value per DALY: iron', 2.3, 'GiveWell: 2.3 UoV per year lived with disability (anaemia)'],
+      ['Units of value per DALY: protein quality', 2.0, 'Judgment'],
+      ['Units of value per DALY: stunting', 1.5, 'As zinc (child deaths)'],
+      ['Units of value per DALY: fiber', 1.8, 'Adult heart disease (judgment)'],
+      ['Units of value per DALY, this mix', '=IF(SUM(E4:E8)=0,0,SUMPRODUCT(E4:E8,B44:B48)/SUM(E4:E8))', 'Weighted by pathway totals (E4:E8)'],
+      ['Units of value per $ (discounted)', '=IF(B6=0,0,B4*B49/B6)', ''],
+      ['Multiple of GiveWell benchmark', '=B50/Inputs!G86', ''],
+      ['GiveWell funding bar (x benchmark)', '=Inputs!G85', ''],
+      ['$ per discounted DALY at the bar', '=B49/(Inputs!G85*Inputs!G86)', ''],
+      [None, None, None],
+      ['Burden check: DALYs/yr at stake in 2030 (every at-risk person, no edit effect)', 'Model', 'GBD (global)'],
+      ['Stunting', '=SUMPRODUCT(Countries!F5:F79*1E6,Countries!M5:M79)*Inputs!G38*Inputs!G37', 33000000],
+      ['Zinc', f'=SUMPRODUCT(Countries!E5:E79*1E6,Countries!K5:K79)*Inputs!G{DR["znDaly"]}', 260000],
+      ['Iron', '=SUMPRODUCT(Countries!E5:E79*1E6,Countries!L5:L79)*Inputs!G35', 33000000],
+      ['Protein quality', '=SUMPRODUCT((Countries!E5:E79-IF(Inputs!G73,Countries!F5:F79,0))*1E6,Countries!M5:M79)*Inputs!G36', 'no GBD risk factor'],
+      ['GBD: stunting ~33M (GBD 2023 analysis; all child growth failure ~75M, GBD 2021); zinc 0.26M ages 1-4 (GBD 2019); dietary iron deficiency ~33M (GBD 2021).', None, None]]
+json.dump({'range': 'Results!A43', 'formulas': gw}, open(O + 'results_gw.json', 'w'))
